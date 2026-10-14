@@ -51,9 +51,9 @@
    }
   },
   "s2/rekit_v4_max": {
-   "cost_usd": 3.7,
-   "wall_min": 10.4,
-   "sessions": 2,
+   "cost_usd": 10.63,
+   "wall_min": 22.0,
+   "sessions": 7,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -61,9 +61,9 @@
    }
   },
   "s2/rekit_v4_balanced": {
-   "cost_usd": 17.21,
-   "wall_min": 48.7,
-   "sessions": 6,
+   "cost_usd": 21.1,
+   "wall_min": 55.7,
+   "sessions": 9,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -82,9 +82,9 @@
    }
   },
   "s2/rekit_v1": {
-   "cost_usd": 93.14,
-   "wall_min": 271.6,
-   "sessions": 32,
+   "cost_usd": 102.48,
+   "wall_min": 303.6,
+   "sessions": 34,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -106,9 +106,9 @@
    }
   },
   "s4/rekit_v3_none": {
-   "cost_usd": 36.13,
-   "wall_min": 104.5,
-   "sessions": 15,
+   "cost_usd": 42.74,
+   "wall_min": 119.2,
+   "sessions": 20,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -1072,6 +1072,71 @@
    "wall_min": 20.1,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V4/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V4",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 4.83,
+   "wall_min": 30.5,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V4/r2"
   },
   {
    "sample": "s4",

@@ -123,6 +123,22 @@ class QuestionStore:
                 lines.append('')
         write_text(path, '\n'.join(lines))
 
+    def _attach_paths(self, text):
+        """Copy files/dirs whose existing paths appear in an answer into <ws>/materials_inbox (answers given by file)."""
+        inbox = os.path.join(self.ws, 'materials_inbox')
+        got = []
+        for tok in re.findall(r'(?:~|/|\./|\.\./)[^\s,;"\'`]+', text):
+            src = os.path.expanduser(tok.rstrip('.)'))
+            if os.path.exists(src) and not os.path.abspath(src).startswith(self.ws):
+                os.makedirs(inbox, exist_ok=True)
+                dst = os.path.join(inbox, os.path.basename(src.rstrip('/')))
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(src, dst)
+                got.append(dst)
+        return got
+
     def export_for_humans(self, path):
         """Markdown questionnaire that a domain expert can fill in offline."""
         qs = self.pending()
@@ -152,13 +168,14 @@ class QuestionStore:
             ans = (m.group(1).strip() if m else '').strip()
             if not ans or qid not in idx or idx[qid]['status'] != 'open':
                 continue
-            if ans in ('보류', 'defer'):
-                self.defer(qid, '보류')
+            if ans in ('보류', 'defer', '모름'):
+                self.defer(qid, ans)
             else:
                 opts = idx[qid].get('options') or []
                 if ans.isdigit() and 1 <= int(ans) <= len(opts):
                     ans = opts[int(ans) - 1]
-                self.record_answer(qid, ans, by='human-file')
+                files = self._attach_paths(ans)
+                self.record_answer(qid, ans, by='human-file', files=files)
             n += 1
         return n
 
