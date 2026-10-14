@@ -5,6 +5,11 @@ class ClaudeError(RuntimeError):
     pass
 
 
+# Each engine step is meant to be one self-contained session. Sub-agents and background/scheduled work made
+# cost unpredictable (a synthesis session that spawned 5 sub-agents cost 3.5x its sibling run), so they are off.
+DISALLOWED_TOOLS = ['Agent', 'Task', 'Monitor', 'ScheduleWakeup', 'CronCreate', 'RemoteTrigger', 'Workflow']
+
+
 def claude_available():
     try:
         return subprocess.run(['claude', '--version'], capture_output=True, text=True, timeout=30).returncode == 0
@@ -28,6 +33,8 @@ def run_claude(prompt, cwd, log_path, model=None, effort=None, add_dirs=(), time
         cmd += ['--json-schema', json.dumps(json_schema)]
     if allowed_tools:
         cmd += ['--tools', ','.join(allowed_tools)]
+    else:
+        cmd += ['--disallowedTools', ','.join(DISALLOWED_TOOLS)]
     cmd += list(extra_args)
     attempt = 0
     while True:

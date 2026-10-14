@@ -72,3 +72,4 @@ compatibility requirements (formats, interfaces, on-media data), scope (unused f
   the whole kit in a single response.
 - Read code with the Read tool (or `cat -n` for line numbers) so that `(src: path:line)` references are exact.
 - Never modify the legacy code roots or materials. Use `.rekit/sandbox/` for any build/run experiments.
+- Do all work yourself in this session: do not delegate to sub-agents or start background jobs (they are disabled).
