@@ -30,20 +30,29 @@ AskUserQuestion으로 묻는다(한 번에 최대 4문항, 2회). 각 질문에 
 2. target — 목표 기술 스택 (예: 신규 SoC + C11, C++17, Rust / Java 21 + Spring Boot 3 + Spring Batch 5 / 미정)
 3. compat — 반드시 유지할 것 (외부 인터페이스·프로토콜, 파일/전문 포맷, DB 스키마, 온플래시(NAND) 데이터 포맷, 운영 스크립트, 성능 / 모름)
 4. scope — 제외할 기능·모듈·빌드 변형 (없음/모름 가능)
-5. env — 레거시를 빌드·실행해 볼 수 있는가(시뮬레이터, 테스트 데이터, 장비), 운영 설정(JVM 옵션, 릴리스 빌드 플래그 등)을 아는 사람이 있는가
-6. people — 질문에 답해 줄 사람/역할 (운영 담당, 현업, 원 개발자, 없음)
-답을 JSON(`{"goal": "...", "target": "...", "compat": "...", "scope": "...", "env": "...", "people": "..."}`)으로 만든다.
+5. env — 레거시를 빌드·실행해 볼 수 있는가(시뮬레이터, 장비, 샘플 입력·덤프·로그 같은 테스트 데이터)
+6. prodcfg — **운영(양산)에서만 적용되는 설정의 실제 값/파일**(JVM 옵션·시스템 프로퍼티, 환경변수, 운영 설정 파일,
+   릴리스 빌드 스크립트·컴파일 플래그, 스케줄러 설정). 코드 기본값과 달라 재개발 결과를 가장 크게 좌우하므로 꼭 묻고,
+   파일이 있으면 경로를 받아 `--materials`에 추가한다.
+7. people — 질문에 답해 줄 사람/역할 (운영 담당, 현업, 원 개발자, 없음)
+답을 JSON(`{"goal": "...", "target": "...", "compat": "...", "scope": "...", "env": "...", "prodcfg": "...", "people": "..."}`)으로 만든다.
 
 ## 3. 초기화와 규모 확인
+품질/비용 프리셋을 AskUserQuestion으로 고르게 한다(기본 balanced):
+- `max` — 최고 정밀도(Opus, 작은 분석 단위). 실측: SSD 펌웨어 시험 정답률 최고, 비용 최대.
+- `balanced` (권장) — Opus, 중간 단위. 정밀도와 비용의 균형.
+- `economy` — Sonnet. 비용 약 1/5~1/8, 정밀도 소폭 하락. 큰 코드베이스의 1차 분석에 적합.
+비용 상한을 원하면 `--budget <USD>`(상한 도달 시 멈추고 재개 가능).
 ```
-RK init <ws> --code <코드경로> [--code <추가경로>] [--materials <자료경로> ...] --no-intake --intake-json '<JSON>'
+RK init <ws> --code <코드경로> [--code <추가경로>] [--materials <자료경로> ...] --preset <프리셋> [--budget <USD>] --no-intake --intake-json '<JSON>'
 RK run <ws> --until inventory
 RK status <ws>
 ```
 - `<ws>/.rekit/inventory.txt` 첫 줄(총 파일/LOC/토큰, 언어)과 `<ws>/.rekit/materials_text/index.json`(자료 변환 결과)을
   요약해 보여준다. 변환 실패 자료(예: HWP 변환기 없음)가 있으면 PDF로 다시 달라고 요청한다.
-- 예상 비용·시간을 안내한다(대략치): 코드 10만 토큰당 Opus 기준 약 $30~80, 1~2시간(병렬 4).
-  비용을 줄이려면 `<ws>/rekit.json`의 `models`에서 `unit`/`review`를 `"sonnet"`으로 바꿀 수 있다고 알려준다.
+- 예상 비용·시간을 안내한다(실측 기반 대략치, 코드 토큰 수 기준): balanced는 코드 1만 토큰당 약 $4~8,
+  economy는 약 $1~2, max는 약 $6~10. 소요 시간은 단위 수/병렬도(기본 4)에 따라 30분~수 시간.
+  프리셋은 `<ws>/rekit.json`의 `models`·`unit_tokens`로 세부 조정할 수 있다.
 - 사용자에게 진행 여부를 확인한다.
 
 ## 4. 실행
@@ -51,11 +60,13 @@ RK status <ws>
 RK run <ws> --bg
 ```
 - 백그라운드로 돌아가며 수십 분~수 시간 걸린다. 사용자에게 "다른 작업을 해도 되고 `/rekit:status`로 확인 가능"하다고 알린다.
-- 끝날 때까지 기다리려면 Bash를 `run_in_background`로 다음 대기 루프를 실행하고 알림을 받는다(최대 2시간, 필요시 반복):
-  `until python3 ${CLAUDE_PLUGIN_ROOT}/engine/rekit.py status <ws> --json | tail -1 | grep -Eq '"run_state": "(done|waiting_human|failed|idle)"'; do sleep 60; done`
+- 끝날 때까지 기다리려면 Bash를 `run_in_background: true`, `timeout: 7200000`으로 `RK wait <ws>`를 실행하고 완료 알림을
+  받는다(최대 약 2시간 대기 후 상태를 출력하고 끝나므로, 아직 `running`이면 다시 실행한다).
 - 상태별 처리:
   - `waiting_human` → 5장 질문 절차 → 끝나면 다시 `RK run <ws> --bg`.
   - `failed` → `tail -50 <ws>/.rekit/run.log`로 원인 확인·설명 후 `RK run <ws> --bg`(완료된 단계는 건너뛰고 이어서 실행).
+    비용 상한 도달이면 사용자에게 알리고, 승인 시 `rekit.json`의 `max_cost_usd`를 올려 재개한다.
+  - `paused` → `--until`로 멈춘 상태. 계속하려면 `RK run <ws> --bg`.
   - `done` → 6장 결과 보고.
 
 ## 5. 사람에게 질문하기 (엔진이 질문을 만들었을 때)

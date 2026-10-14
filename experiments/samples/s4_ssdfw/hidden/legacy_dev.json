@@ -1,0 +1,1497 @@
+{
+ "checks": [
+  {
+   "category": "build",
+   "name": "library_and_tests_build",
+   "pass": true,
+   "expected": "ok",
+   "actual": "ok",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "invalid_opcodes",
+   "pass": true,
+   "expected": "001|001|001|001",
+   "actual": "001|001|001|001",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "read_oor",
+   "pass": true,
+   "expected": "080",
+   "actual": "080",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "read_cross_end",
+   "pass": true,
+   "expected": "080",
+   "actual": "080",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "read_last",
+   "pass": true,
+   "expected": "000",
+   "actual": "000",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "write_oor",
+   "pass": true,
+   "expected": "080",
+   "actual": "080",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "io_bad_nsid",
+   "pass": true,
+   "expected": "00b|00b",
+   "actual": "00b|00b",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "read_over_mdts",
+   "pass": true,
+   "expected": "002",
+   "actual": "002",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "mdts_read_write",
+   "pass": true,
+   "expected": "000/000/0",
+   "actual": "000/000/0",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "flush_nsid",
+   "pass": true,
+   "expected": "000|00b",
+   "actual": "000|00b",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "dsm_out_of_range",
+   "pass": true,
+   "expected": "080",
+   "actual": "080",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "dsm_without_deallocate",
+   "pass": true,
+   "expected": "000/0",
+   "actual": "000/0",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "log_invalid_lid",
+   "pass": true,
+   "expected": "109",
+   "actual": "109",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "log_smart_any_nsid",
+   "pass": true,
+   "expected": "000",
+   "actual": "000",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "log_partial_transfer",
+   "pass": true,
+   "expected": "000/1/1",
+   "actual": "000/1/1",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "identify_invalid",
+   "pass": true,
+   "expected": "002|00b",
+   "actual": "002|00b",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "identify_ns_list",
+   "pass": true,
+   "expected": "000/1,0",
+   "actual": "000/1,0",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "features_invalid",
+   "pass": true,
+   "expected": "002|10d|002|002",
+   "actual": "002|10d|002|002",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "format_invalid",
+   "pass": true,
+   "expected": "10a|002|00b",
+   "actual": "10a|002|00b",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "completion_cid_sqid",
+   "pass": true,
+   "expected": "1234/1/000",
+   "actual": "1234/1/000",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "error_log_count",
+   "pass": true,
+   "expected": "22",
+   "actual": "22",
+   "detail": ""
+  },
+  {
+   "category": "cmd",
+   "name": "host_cmd_counting",
+   "pass": true,
+   "expected": "4/1",
+   "actual": "4/1",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_vid_ssvid",
+   "pass": true,
+   "expected": "1f7a/1f7a",
+   "actual": "1f7a/1f7a",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_sn",
+   "pass": false,
+   "expected": "S4TB4567BD20096_____",
+   "actual": "S4QB4567BD20096_____",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_mn",
+   "pass": false,
+   "expected": "SRK_S4T_NVMe_SSD________________________",
+   "actual": "SRK_S4Q_NVMe_SSD________________________",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_fr",
+   "pass": true,
+   "expected": "S4FW4219",
+   "actual": "S4FW4219",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_oui_mdts",
+   "pass": true,
+   "expected": "9eb138/8",
+   "actual": "9eb138/8",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_ver",
+   "pass": true,
+   "expected": "00010300",
+   "actual": "00010300",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_oacs_npss",
+   "pass": true,
+   "expected": "0002/2",
+   "actual": "0002/2",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_wctemp_cctemp",
+   "pass": true,
+   "expected": "343/358",
+   "actual": "343/358",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "id_nn_oncs_vwc_qes",
+   "pass": true,
+   "expected": "1/0004/1|66/44",
+   "actual": "1/0004/1|66/44",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "ns_size_capacity",
+   "pass": false,
+   "expected": "14528/14528",
+   "actual": "15352/15352",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "ns_lba_format",
+   "pass": true,
+   "expected": "0/0/01|000c0000",
+   "actual": "0/0/01|000c0000",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "ns_nuse_cached",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "ns_nuse_flushed",
+   "pass": true,
+   "expected": "10",
+   "actual": "10",
+   "detail": ""
+  },
+  {
+   "category": "identify",
+   "name": "ns_nuse_trim",
+   "pass": true,
+   "expected": "7",
+   "actual": "7",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_cache_on",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_cache_off",
+   "pass": true,
+   "expected": "000/0",
+   "actual": "000/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_fua_mix",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_unwritten_zero",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_fill",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_unaligned",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_cache_overwrite",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_refill_gc",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_reboot_clean",
+   "pass": true,
+   "expected": "0/0",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_reboot_abrupt",
+   "pass": true,
+   "expected": "0/0",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_format_ses0",
+   "pass": true,
+   "expected": "000/0",
+   "actual": "000/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_format_ses1",
+   "pass": true,
+   "expected": "000/0",
+   "actual": "000/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_format_reboot",
+   "pass": true,
+   "expected": "0/0",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_gc_random",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_gc_after_idle",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "integrity",
+   "name": "integ_wl",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_initial",
+   "pass": false,
+   "expected": "000/1/0/80/10/0/00",
+   "actual": "000/1/0/66/10/0/00",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_temp_initial",
+   "pass": true,
+   "expected": "313",
+   "actual": "313",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_du_floor",
+   "pass": true,
+   "expected": "2/1",
+   "actual": "2/1",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_cmds",
+   "pass": true,
+   "expected": "2/3/1",
+   "actual": "2/3/1",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_du_boundary",
+   "pass": true,
+   "expected": "3/1",
+   "actual": "3/1",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_poh",
+   "pass": true,
+   "expected": "3",
+   "actual": "3",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_temp_stale",
+   "pass": true,
+   "expected": "313",
+   "actual": "313",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_temp_after_tick",
+   "pass": true,
+   "expected": "333/00",
+   "actual": "333/00",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_cw_temp_threshold",
+   "pass": true,
+   "expected": "02|02|00",
+   "actual": "02|02|00",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_after_2_clean",
+   "pass": true,
+   "expected": "3/0/3/3/3",
+   "actual": "3/0/3/3/3",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_after_abrupt",
+   "pass": true,
+   "expected": "4/1",
+   "actual": "4/1",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_after_cut",
+   "pass": true,
+   "expected": "5/2",
+   "actual": "5/2",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_temp_reboot",
+   "pass": true,
+   "expected": "333/00",
+   "actual": "333/00",
+   "detail": ""
+  },
+  {
+   "category": "smart",
+   "name": "smart_aged_percentage_used",
+   "pass": false,
+   "expected": "80/00/80",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "smart",
+   "name": "smart_aged_percentage_saturate",
+   "pass": false,
+   "expected": "255/04/80",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "vendor",
+   "name": "c0_sig_raw",
+   "pass": true,
+   "expected": "000/5334444300000003",
+   "actual": "000/5334444300000003",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_cdw0",
+   "pass": true,
+   "expected": "23",
+   "actual": "23",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_bad_raw",
+   "pass": true,
+   "expected": "00000002",
+   "actual": "00000002",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_raw_prefix",
+   "pass": true,
+   "expected": "5334444300000003000000000000000000000002000000000000000000000000000000000000000000000049",
+   "actual": "5334444300000003000000000000000000000002000000000000000000000000000000000000000000000049",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_free_ec",
+   "pass": true,
+   "expected": "73/0/1/0",
+   "actual": "73/0/1/0",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_dirty",
+   "pass": true,
+   "expected": "10",
+   "actual": "10",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_format_dirty",
+   "pass": true,
+   "expected": "1/0",
+   "actual": "1/0",
+   "detail": ""
+  },
+  {
+   "category": "vendor",
+   "name": "c0_nand_programs",
+   "pass": true,
+   "expected": "500",
+   "actual": "500",
+   "detail": "rel tol 10%"
+  },
+  {
+   "category": "vendor",
+   "name": "c1_debug_or_dropped",
+   "pass": true,
+   "expected": "000/1|002",
+   "actual": "000/1|002",
+   "detail": ""
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_count",
+   "pass": false,
+   "expected": "1368",
+   "actual": "3324",
+   "detail": "rel tol 10%"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_avg_ec",
+   "pass": false,
+   "expected": "17",
+   "actual": "40",
+   "detail": "rel tol 10%"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_ec_spread",
+   "pass": false,
+   "expected": "2",
+   "actual": "9",
+   "detail": "<= expected+3"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_wl_random",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": "abs tol 3"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_nand_programs",
+   "pass": false,
+   "expected": "69526",
+   "actual": "163506",
+   "detail": "rel tol 10%"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_idle",
+   "pass": false,
+   "expected": "12/4",
+   "actual": "12/1",
+   "detail": "tol [3, 2]"
+  },
+  {
+   "category": "gcwl",
+   "name": "gc_idle_thermal",
+   "pass": true,
+   "expected": "1/0/1",
+   "actual": "1/0/1",
+   "detail": ""
+  },
+  {
+   "category": "gcwl",
+   "name": "wl_count",
+   "pass": false,
+   "expected": "121",
+   "actual": "301",
+   "detail": "tol [0.5, 10]"
+  },
+  {
+   "category": "gcwl",
+   "name": "wl_gc_count",
+   "pass": false,
+   "expected": "1625",
+   "actual": "3010",
+   "detail": "rel tol 10%"
+  },
+  {
+   "category": "gcwl",
+   "name": "wl_ec_spread",
+   "pass": true,
+   "expected": "29",
+   "actual": "21",
+   "detail": "<= expected+6"
+  },
+  {
+   "category": "gcwl",
+   "name": "wl_avg_ec",
+   "pass": false,
+   "expected": "21",
+   "actual": "39",
+   "detail": "rel tol 15%"
+  },
+  {
+   "category": "badblock",
+   "name": "bb_factory_counts",
+   "pass": false,
+   "expected": "5/0/50",
+   "actual": "5/0/16",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_factory_fill",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_pf_counts",
+   "pass": true,
+   "expected": "1/1/3",
+   "actual": "1/1/3",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_pf_spare",
+   "pass": false,
+   "expected": "80/70/00",
+   "actual": "66/50/00",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_pf_data",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_pf_persist",
+   "pass": false,
+   "expected": "1/3/70",
+   "actual": "1/3/50",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_pf_data_reboot",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_ef_counts",
+   "pass": true,
+   "expected": "1/1/3",
+   "actual": "1/1/3",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_ef_spare",
+   "pass": false,
+   "expected": "70",
+   "actual": "50",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_ef_data",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_spare9",
+   "pass": false,
+   "expected": "10/00",
+   "actual": "0/01",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_spare10",
+   "pass": true,
+   "expected": "0/01",
+   "actual": "0/01",
+   "detail": ""
+  },
+  {
+   "category": "badblock",
+   "name": "bb_spare10_io",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l2",
+   "pass": false,
+   "expected": "000/1/2/0/0/000/1/2",
+   "actual": "000/1/1/0/0/000/1/1",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l3",
+   "pass": false,
+   "expected": "000/1/3/0/0/000/1/3",
+   "actual": "000/1/2/0/0/000/1/2",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l4",
+   "pass": false,
+   "expected": "000/1/4/1/1/000/1/0",
+   "actual": "000/1/2/0/0/000/1/2",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l6",
+   "pass": false,
+   "expected": "000/1/6/1/1/000/1/0",
+   "actual": "000/1/3/1/1/000/1/0",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l9",
+   "pass": false,
+   "expected": "281/0/7/0/0/281/0/7",
+   "actual": "000/1/5/1/1/000/1/0",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_l9_smart",
+   "pass": false,
+   "expected": "2/2",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_recovered_no_media_error",
+   "pass": true,
+   "expected": "0/0|0/0|0/0|0/0",
+   "actual": "0/0|0/0|0/0|0/0",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_unc_rewrite",
+   "pass": true,
+   "expected": "000/1",
+   "actual": "000/1",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_totals",
+   "pass": false,
+   "expected": "49/2/2",
+   "actual": "31/2/2",
+   "detail": ""
+  },
+  {
+   "category": "readretry",
+   "name": "rr_data_all",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  },
+  {
+   "category": "readdisturb",
+   "name": "rd_at_limit",
+   "pass": false,
+   "expected": "0/0",
+   "actual": "1/1",
+   "detail": ""
+  },
+  {
+   "category": "readdisturb",
+   "name": "rd_over_limit",
+   "pass": true,
+   "expected": "1/1/0",
+   "actual": "1/1/0",
+   "detail": ""
+  },
+  {
+   "category": "readdisturb",
+   "name": "rd_data",
+   "pass": true,
+   "expected": "1",
+   "actual": "1",
+   "detail": ""
+  },
+  {
+   "category": "readdisturb",
+   "name": "rd_second",
+   "pass": true,
+   "expected": "2/2",
+   "actual": "2/2",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_0",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_1",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_3",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_8",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_21",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_55",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_144",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_377",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_610",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_987",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_1597",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_2584",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_4181",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cut_6765",
+   "pass": true,
+   "expected": "0/0/1/1/0/0",
+   "actual": "0/0/1/1/0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_cached_lost",
+   "pass": true,
+   "expected": "old",
+   "actual": "old",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_flush_survives",
+   "pass": true,
+   "expected": "new",
+   "actual": "new",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_fua_survives",
+   "pass": true,
+   "expected": "new",
+   "actual": "new",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_abrupt_shutdown",
+   "pass": true,
+   "expected": "new/1",
+   "actual": "new/1",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_clean_shutdown",
+   "pass": true,
+   "expected": "new/0",
+   "actual": "new/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_double_cut",
+   "pass": true,
+   "expected": "0/0",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "powerloss",
+   "name": "pl_format_cut",
+   "pass": true,
+   "expected": "0/0",
+   "actual": "0/0",
+   "detail": ""
+  },
+  {
+   "category": "compat",
+   "name": "r2c_clean_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_clean_counters",
+   "pass": false,
+   "expected": "1/0|0/0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_clean_meta",
+   "pass": false,
+   "expected": "2/0/80|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_cut_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_cut_counters",
+   "pass": false,
+   "expected": "1/1",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_cut_meta",
+   "pass": false,
+   "expected": "2/0/80|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_pf_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_pf_counters",
+   "pass": false,
+   "expected": "1/0|0/0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "r2c_pf_meta",
+   "pass": false,
+   "expected": "3/1/70|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_clean_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_clean_counters",
+   "pass": false,
+   "expected": "1/0|0/0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_clean_meta",
+   "pass": false,
+   "expected": "2/0/80|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_cut_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_cut_counters",
+   "pass": false,
+   "expected": "1/1",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "c2r_cut_meta",
+   "pass": false,
+   "expected": "2/0/80|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "rt2_mount_data",
+   "pass": false,
+   "expected": "0|0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "rt2_counters",
+   "pass": false,
+   "expected": "1/0|0/0",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "rt2_meta",
+   "pass": false,
+   "expected": "2/0/80|S4TB4567BD20096_____/14528",
+   "actual": null,
+   "detail": "missing"
+  },
+  {
+   "category": "compat",
+   "name": "aged_mount",
+   "pass": false,
+   "expected": "0|0",
+   "actual": "-4|-4",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_poll_timing",
+   "pass": true,
+   "expected": "0|0",
+   "actual": "0|0",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_l1",
+   "pass": true,
+   "expected": "1/1",
+   "actual": "1/1",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_l2",
+   "pass": true,
+   "expected": "2/2",
+   "actual": "2/2",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_l3",
+   "pass": true,
+   "expected": "3/3/363/02",
+   "actual": "3/3/363/02",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_hold",
+   "pass": true,
+   "expected": "3/3",
+   "actual": "3/3",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_hysteresis",
+   "pass": true,
+   "expected": "2|2",
+   "actual": "2|2",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_drop_all",
+   "pass": true,
+   "expected": "0/3",
+   "actual": "0/3",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_cache_limit",
+   "pass": true,
+   "expected": "24/40",
+   "actual": "24/40",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_l3_writethrough",
+   "pass": true,
+   "expected": "new",
+   "actual": "new",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_boot_level",
+   "pass": true,
+   "expected": "3/6",
+   "actual": "3/6",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_l0_cached",
+   "pass": true,
+   "expected": "old",
+   "actual": "old",
+   "detail": ""
+  },
+  {
+   "category": "thermal",
+   "name": "th_events_persist",
+   "pass": true,
+   "expected": "5/5",
+   "actual": "5/5",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_vwc_default",
+   "pass": true,
+   "expected": "000/1",
+   "actual": "000/1",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_vwc_off",
+   "pass": true,
+   "expected": "000/0",
+   "actual": "000/0",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_vwc_sel_default",
+   "pass": true,
+   "expected": "1",
+   "actual": "1",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_vwc_off_durable",
+   "pass": true,
+   "expected": "1",
+   "actual": "1",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_vwc_reset",
+   "pass": true,
+   "expected": "1",
+   "actual": "1",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_tmpth_default",
+   "pass": true,
+   "expected": "358",
+   "actual": "358",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_tmpth_set",
+   "pass": true,
+   "expected": "000/336",
+   "actual": "000/336",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_ps_set",
+   "pass": true,
+   "expected": "000/2",
+   "actual": "000/2",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_ps_bad",
+   "pass": true,
+   "expected": "002",
+   "actual": "002",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_reset_reboot",
+   "pass": true,
+   "expected": "1/358/0",
+   "actual": "1/358/0",
+   "detail": ""
+  },
+  {
+   "category": "features",
+   "name": "feat_tmpth_invalid",
+   "pass": true,
+   "expected": "002|002",
+   "actual": "002|002",
+   "detail": ""
+  },
+  {
+   "category": "nand_protocol",
+   "name": "no_protocol_violations",
+   "pass": true,
+   "expected": "0",
+   "actual": "0",
+   "detail": ""
+  }
+ ],
+ "categories": {
+  "build": {
+   "pass": 1,
+   "total": 1
+  },
+  "cmd": {
+   "pass": 21,
+   "total": 21
+  },
+  "identify": {
+   "pass": 11,
+   "total": 14
+  },
+  "integrity": {
+   "pass": 16,
+   "total": 16
+  },
+  "smart": {
+   "pass": 12,
+   "total": 15
+  },
+  "vendor": {
+   "pass": 9,
+   "total": 9
+  },
+  "gcwl": {
+   "pass": 3,
+   "total": 11
+  },
+  "badblock": {
+   "pass": 8,
+   "total": 13
+  },
+  "readretry": {
+   "pass": 3,
+   "total": 10
+  },
+  "readdisturb": {
+   "pass": 3,
+   "total": 4
+  },
+  "powerloss": {
+   "pass": 21,
+   "total": 21
+  },
+  "compat": {
+   "pass": 0,
+   "total": 19
+  },
+  "thermal": {
+   "pass": 12,
+   "total": 12
+  },
+  "features": {
+   "pass": 11,
+   "total": 11
+  },
+  "nand_protocol": {
+   "pass": 1,
+   "total": 1
+  }
+ },
+ "errors": {},
+ "overall": {
+  "pass": 132,
+  "total": 178,
+  "score": 0.7416
+ },
+ "implementation": "legacy_ref(repo defaults)"
+}

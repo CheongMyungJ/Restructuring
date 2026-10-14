@@ -102,11 +102,26 @@ def run_redev(sample, variant, rep, model='sonnet', kit_method='kitgen_v1', time
     s = run_claude(prompt, ws, os.path.join(os.path.dirname(ws), 'session.jsonl'), model=model, timeout_s=timeout_s,
                    watch_roots=WATCH, allowed_roots=[ws, os.path.expanduser('~/.m2'), '/tmp'])
     sc = score(sample, ws)
+    cleanup(ws)
     out = {'sample': sample, 'variant': variant, 'rep': rep, 'model': model, 'kit_method': kit_method,
            'session': {k: s.get(k) for k in ('cost_usd', 'wall_s', 'num_turns', 'is_error', 'timed_out')},
            'audit_violations': s['audit'].get('violation_count'), 'score': sc}
     json.dump(out, open(os.path.join(os.path.dirname(ws), 'result.json'), 'w'), ensure_ascii=False, indent=1)
     return out
+
+
+def cleanup(ws):
+    """Free disk after scoring: build outputs and the redeveloper's own Claude scratchpad (NAND images etc.)."""
+    import re as _re
+    for sub in ('target', 'build'):
+        shutil.rmtree(os.path.join(ws, 'new', sub), ignore_errors=True)
+    scratch = os.path.join('/tmp/claude-0', _re.sub(r'[^A-Za-z0-9]', '-', ws))
+    if os.path.isdir(scratch):
+        shutil.rmtree(scratch, ignore_errors=True)
+    for dp, dn, fs in os.walk(ws):
+        for f in fs:
+            if f.endswith(('.img', '.bin', '.o')) and os.path.getsize(os.path.join(dp, f)) > 1_000_000:
+                os.remove(os.path.join(dp, f))
 
 
 def score(sample, ws):

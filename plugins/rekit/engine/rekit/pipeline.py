@@ -359,6 +359,27 @@ class Pipeline:
         if not self.cfg.get('characterize'):
             return
         self.claude('characterize', self.render('characterize.md'), timeout_s=4 * 3600)
+        self.prune_sandbox()
+
+    def prune_sandbox(self, max_mb=20):
+        """Free disk: drop rebuildable build outputs and very large files from .rekit/sandbox (the kit is self-contained)."""
+        box = os.path.join(self.rk, 'sandbox')
+        freed = 0
+        for dp, dn, fs in os.walk(box, topdown=True):
+            for d in list(dn):
+                if d in ('target', 'build', 'node_modules', '.gradle'):
+                    shutil.rmtree(os.path.join(dp, d), ignore_errors=True)
+                    dn.remove(d)
+            for f in fs:
+                fp = os.path.join(dp, f)
+                try:
+                    if os.path.getsize(fp) > max_mb * 1_000_000:
+                        freed += os.path.getsize(fp)
+                        os.remove(fp)
+                except OSError:
+                    pass
+        if freed:
+            self.log(f'  · sandbox 정리: 대용량 파일 {freed // 1_000_000} MB 삭제')
 
     def p_review(self):
         if not self.cfg.get('review'):

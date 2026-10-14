@@ -27,9 +27,10 @@ def gen_costs():
 def tk_sets():
     """Checks that depend on tribal knowledge: those the legacy app itself fails without production settings."""
     out = {}
-    p = os.path.join(SP, 'samples', 's3_tlog', 'hidden', 'reports', 'legacy_empty.json')
-    if os.path.exists(p):
-        out['s3'] = set(reports.load(p).get('failed_ids', []))
+    for sample, rel in (('s3', 's3_tlog/hidden/reports/legacy_empty.json'), ('s4', 's4_ssdfw/hidden/reports/legacy_dev.json')):
+        p = os.path.join(SP, 'samples', rel)
+        if os.path.exists(p):
+            out[sample] = set(reports.load(p).get('failed_ids', []))
     return out
 
 

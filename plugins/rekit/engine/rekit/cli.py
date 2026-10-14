@@ -20,7 +20,8 @@ INTAKE_QUESTIONS = [
     ('target', '목표 기술 스택/플랫폼이 정해져 있나요? (예: Java 21 + Spring Boot 3, 신규 SoC + C11, 미정)'),
     ('compat', '반드시 그대로 유지해야 하는 것은? (외부 인터페이스, 파일/전문 포맷, DB 스키마, 온플래시 데이터 포맷, 프로토콜, 성능 등 / 모름)'),
     ('scope', '재개발 범위에서 제외할 기능/모듈이 있나요? (예: 사용하지 않는 배치, 특정 #ifdef 변형)'),
-    ('env', '레거시를 빌드/실행해 볼 수 있는 환경·장비·테스트 데이터가 있나요? 운영 환경 설정(JVM 옵션, 빌드 플래그 등)을 아는 분이 있나요?'),
+    ('env', '레거시를 빌드/실행해 볼 수 있는 환경·장비·시뮬레이터·테스트 데이터(샘플 입력, 덤프, 로그)가 있나요?'),
+    ('prodcfg', '운영(양산) 환경에서만 적용되는 설정의 실제 값이나 파일을 줄 수 있나요? (예: JVM 옵션·시스템 프로퍼티, 환경변수, 운영 설정 파일, 릴리스 빌드 스크립트·컴파일 플래그, 스케줄러/crontab 설정) — 코드 기본값과 다를 수 있어 가장 중요합니다'),
     ('people', '질문에 답해 줄 수 있는 사람(역할)은 누구인가요? (예: 운영 담당, 현업, 원 개발자)'),
 ]
 
@@ -83,7 +84,10 @@ def run_state(ws):
     last = os.path.join(ws, '.rekit', 'last_run.json')
     if os.path.exists(last):
         rc = (read_json(last) or {}).get('exit_code')
-        return {0: 'done', NEEDS_HUMAN: 'waiting_human'}.get(rc, 'failed')
+        if rc == 0:
+            phases = (read_json(os.path.join(ws, '.rekit', 'state.json')) or {}).get('phases', {})
+            return 'done' if all(phases.get(ph) == 'done' for ph in PHASES) else 'paused'
+        return {NEEDS_HUMAN: 'waiting_human'}.get(rc, 'failed')
     return 'idle'
 
 
@@ -105,12 +109,29 @@ def cmd_run(a):
         logf.write(f"\n===== run started {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n"); logf.flush()
         proc = subprocess.Popen(args, stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                 start_new_session=True, cwd=ws)
-        write_text(os.path.join(ws, '.rekit', 'run.pid'), str(proc.pid))
+        for _ in range(50):                      # wait until the child registered itself
+            if run_state(ws) == 'running':
+                break
+            time.sleep(0.1)
         print(f'백그라운드 실행 시작 (pid {proc.pid}). 진행상황: rekit status {ws}  / 로그: {ws}/.rekit/run.log')
         return 0
-    rc = _cmd_run(a, ws)
     import time
-    write_json(os.path.join(ws, '.rekit', 'last_run.json'), {'exit_code': rc, 'finished_at': time.strftime('%Y-%m-%d %H:%M:%S')})
+    if run_state(ws) == 'running':
+        pid = open(os.path.join(ws, '.rekit', 'run.pid')).read().strip()
+        if pid != str(os.getpid()):
+            print(f'이미 다른 실행(pid {pid})이 진행 중입니다. rekit status {ws}')
+            return 1
+    pidf = os.path.join(ws, '.rekit', 'run.pid')
+    last = os.path.join(ws, '.rekit', 'last_run.json')
+    write_text(pidf, str(os.getpid()))
+    if os.path.exists(last):
+        os.remove(last)
+    try:
+        rc = _cmd_run(a, ws)
+    finally:
+        if os.path.exists(pidf) and open(pidf).read().strip() == str(os.getpid()):
+            os.remove(pidf)
+    write_json(last, {'exit_code': rc, 'finished_at': time.strftime('%Y-%m-%d %H:%M:%S')})
     return rc
 
 
@@ -265,6 +286,19 @@ def cmd_doctor(a):
     return 0
 
 
+def cmd_wait(a):
+    """Block until the run is no longer running (for front-ends): prints the final state and pending question count."""
+    import time
+    ws = ws_arg(a.workspace)
+    t0 = time.time()
+    while run_state(ws) == 'running' and time.time() - t0 < a.timeout:
+        time.sleep(a.interval)
+    st = run_state(ws)
+    n = len(QuestionStore(ws).pending()) if st == 'waiting_human' else 0
+    print(json.dumps({'run_state': st, 'pending_questions': n, 'waited_s': int(time.time() - t0)}, ensure_ascii=False))
+    return 0
+
+
 def cmd_coverage(a):
     print(json.dumps({k: v for k, v in Pipeline(ws_arg(a.workspace)).coverage().items() if not k.startswith('unref')}, indent=1))
 
@@ -293,6 +327,9 @@ def main(argv=None):
     s = sub.add_parser('add-material'); s.add_argument('workspace'); s.add_argument('paths', nargs='+'); s.set_defaults(fn=cmd_add_material)
     s = sub.add_parser('coverage'); s.add_argument('workspace', nargs='?'); s.set_defaults(fn=cmd_coverage)
     s = sub.add_parser('doctor', help='필수/선택 도구 점검'); s.set_defaults(fn=cmd_doctor)
+    s = sub.add_parser('wait', help='실행이 멈출 때까지 대기(완료/사람 확인 필요/실패/일시정지)')
+    s.add_argument('workspace', nargs='?'); s.add_argument('--timeout', type=int, default=6600)
+    s.add_argument('--interval', type=int, default=30); s.set_defaults(fn=cmd_wait)
     a = ap.parse_args(argv)
     rc = a.fn(a)
     sys.exit(rc or 0)

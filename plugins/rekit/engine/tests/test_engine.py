@@ -107,7 +107,8 @@ class EngineTests(unittest.TestCase):
         r = subprocess.run(RK + ['status', ws, '--json'], capture_output=True, text=True)
         st = json.loads(r.stdout.strip().splitlines()[-1])
         self.assertEqual(st['phases']['inventory'], 'done')
-        self.assertEqual(st['run_state'], 'done')
+        self.assertEqual(st['run_state'], 'paused')           # only inventory ran
+        self.assertFalse(os.path.exists(os.path.join(ws, '.rekit', 'run.pid')))
 
     def test_coverage(self):
         ws = os.path.join(self.tmp, 'work2')
