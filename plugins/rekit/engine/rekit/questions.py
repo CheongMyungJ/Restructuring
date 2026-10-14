@@ -2,6 +2,8 @@
 and hand answers back to the pipeline."""
 import glob, json, os, re, shutil, textwrap, time
 
+from .util import read_json, write_json, write_text, read_text
+
 PRIO = {'blocking': 0, 'important': 1, 'minor': 2}
 
 
@@ -11,10 +13,10 @@ class QuestionStore:
         self.dir = os.path.join(ws, '.rekit', 'questions')
         os.makedirs(self.dir, exist_ok=True)
         self.path = os.path.join(self.dir, 'store.json')
-        self.items = json.load(open(self.path, encoding='utf-8')) if os.path.exists(self.path) else []
+        self.items = read_json(self.path, [])
 
     def save(self):
-        json.dump(self.items, open(self.path, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        write_json(self.path, self.items)
         self.render_markdown()
 
     def by_id(self):
@@ -22,9 +24,8 @@ class QuestionStore:
 
     # ---------- collection ----------
     def ingest_file(self, path, source):
-        try:
-            data = json.load(open(path, encoding='utf-8'))
-        except Exception:
+        data = read_json(path)
+        if data is None:
             return 0
         if isinstance(data, dict):
             data = data.get('questions', [])
@@ -53,9 +54,8 @@ class QuestionStore:
 
     def supersede(self, merged_path):
         """After synthesis: questions not present in merged (and not answered) are marked merged/dropped."""
-        try:
-            merged = json.load(open(merged_path, encoding='utf-8'))
-        except Exception:
+        merged = read_json(merged_path)
+        if not isinstance(merged, list):
             return
         keep = {q.get('id') for q in merged if isinstance(q, dict)}
         merged_from = {m for q in merged if isinstance(q, dict) for m in (q.get('merged_from') or [])}
@@ -121,7 +121,7 @@ class QuestionStore:
                 if q.get('answer'):
                     lines.append(f"- 답변: {q['answer']}")
                 lines.append('')
-        open(path, 'w', encoding='utf-8').write('\n'.join(lines))
+        write_text(path, '\n'.join(lines))
 
     def export_for_humans(self, path):
         """Markdown questionnaire that a domain expert can fill in offline."""
@@ -138,11 +138,11 @@ class QuestionStore:
             if q.get('assumption'):
                 out += [f"(답이 없으면 적용할 가정: {q['assumption']})", '']
             out += ['답변:', '', '']
-        open(path, 'w', encoding='utf-8').write('\n'.join(out))
+        write_text(path, '\n'.join(out))
         return len(qs)
 
     def import_from_humans(self, path):
-        text = open(path, encoding='utf-8').read()
+        text = read_text(path, '')
         parts = re.split(r'^## (Q-[\w-]+)[^\n]*$', text, flags=re.M)
         n = 0
         idx = self.by_id()

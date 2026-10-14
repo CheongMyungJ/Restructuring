@@ -13,6 +13,7 @@ import argparse, json, os, shutil, sys
 
 from .pipeline import Pipeline, PHASES, NEEDS_HUMAN, DEFAULT_CONFIG
 from .questions import QuestionStore, ask_terminal
+from .util import read_json, write_json, write_text
 
 INTAKE_QUESTIONS = [
     ('goal', '재개발의 목적/배경은 무엇인가요? (예: 플랫폼 교체, 유지보수성, 성능, 단종 대응)'),
@@ -41,7 +42,7 @@ def cmd_init(a):
             sys.exit(f"경로가 없습니다: {c['path']}")
     if a.lang:
         cfg['language'] = a.lang
-    json.dump(cfg, open(os.path.join(ws, 'rekit.json'), 'w'), ensure_ascii=False, indent=1)
+    write_json(os.path.join(ws, 'rekit.json'), cfg)
     os.makedirs(os.path.join(ws, '.rekit'), exist_ok=True)
     intake = ['# Intake (사람이 제공한 사전 정보)', '']
     answers = json.loads(a.intake_json) if a.intake_json else {}
@@ -51,7 +52,7 @@ def cmd_init(a):
             answers[key] = input(f'- {q}\n> ').strip()
     for key, q in INTAKE_QUESTIONS:
         intake += [f'## {q}', answers.get(key) or '(답변 없음)', '']
-    open(os.path.join(ws, '.rekit', 'intake.md'), 'w', encoding='utf-8').write('\n'.join(intake))
+    write_text(os.path.join(ws, '.rekit', 'intake.md'), '\n'.join(intake))
     print(f'워크스페이스 생성: {ws}\n다음: rekit run {ws}')
 
 
@@ -74,7 +75,7 @@ def run_state(ws):
             pass
     last = os.path.join(ws, '.rekit', 'last_run.json')
     if os.path.exists(last):
-        rc = json.load(open(last)).get('exit_code')
+        rc = (read_json(last) or {}).get('exit_code')
         return {0: 'done', NEEDS_HUMAN: 'waiting_human'}.get(rc, 'failed')
     return 'idle'
 
@@ -97,13 +98,12 @@ def cmd_run(a):
         logf.write(f"\n===== run started {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n"); logf.flush()
         proc = subprocess.Popen(args, stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                 start_new_session=True, cwd=ws)
-        open(os.path.join(ws, '.rekit', 'run.pid'), 'w').write(str(proc.pid))
+        write_text(os.path.join(ws, '.rekit', 'run.pid'), str(proc.pid))
         print(f'백그라운드 실행 시작 (pid {proc.pid}). 진행상황: rekit status {ws}  / 로그: {ws}/.rekit/run.log')
         return 0
     rc = _cmd_run(a, ws)
     import time
-    json.dump({'exit_code': rc, 'finished_at': time.strftime('%Y-%m-%d %H:%M:%S')},
-              open(os.path.join(ws, '.rekit', 'last_run.json'), 'w'))
+    write_json(os.path.join(ws, '.rekit', 'last_run.json'), {'exit_code': rc, 'finished_at': time.strftime('%Y-%m-%d %H:%M:%S')})
     return rc
 
 
@@ -118,6 +118,13 @@ def _cmd_run(a, ws):
         p.cfg['oracle_files'] = os.path.abspath(a.oracle_files)
     if a.parallel:
         p.cfg['parallel'] = a.parallel
+    if a.human or a.oracle or a.oracle_files or a.parallel:   # persist so that resumed runs behave the same
+        cfg_path = os.path.join(ws, 'rekit.json')
+        user = read_json(cfg_path, {})
+        for k in ('human', 'oracle_knowledge', 'oracle_files', 'parallel'):
+            if p.cfg.get(k) is not None:
+                user[k] = p.cfg[k]
+        write_json(cfg_path, user)
     for ph in (a.redo or []):
         p.state['phases'].pop(ph, None)
     p.save_state()
@@ -210,13 +217,41 @@ def cmd_add_material(a):
         dst = os.path.join(inbox, os.path.basename(f.rstrip('/')))
         (shutil.copytree if os.path.isdir(f) else shutil.copy2)(f, dst)
     cfg_path = os.path.join(ws, 'rekit.json')
-    cfg = json.load(open(cfg_path, encoding='utf-8'))
+    cfg = read_json(cfg_path, {})
     if not any(m['label'] == 'provided' for m in cfg['materials']):
         cfg['materials'].append({'label': 'provided', 'path': inbox})
-        json.dump(cfg, open(cfg_path, 'w'), ensure_ascii=False, indent=1)
+        write_json(cfg_path, cfg)
     from . import materials
     materials.convert_all([(m['label'], m['path']) for m in cfg['materials']], os.path.join(ws, '.rekit', 'materials_text'))
     print(f'{len(a.paths)}개 자료 추가 완료 (다음 rekit run 에 반영)')
+
+
+def cmd_doctor(a):
+    import importlib, platform, shutil, subprocess
+    rows = []
+    ok_py = sys.version_info >= (3, 9)
+    rows.append(('python', platform.python_version(), ok_py, '3.9 이상 필요'))
+    try:
+        v = subprocess.run(['claude', '--version'], capture_output=True, text=True, timeout=60).stdout.strip()
+        rows.append(('claude CLI', v or '?', bool(v), 'Claude Code 설치·로그인 필요 (https://code.claude.com)'))
+    except Exception:
+        rows.append(('claude CLI', '없음', False, 'Claude Code 설치·로그인 필요'))
+    for tool, why in (('pdftotext', 'PDF 변환(없으면 pypdf 사용)'), ('pandoc', 'DOCX 대체 변환'),
+                      ('soffice', 'DOC/XLS/PPT/HWP 변환'), ('hwp5txt', 'HWP 변환 (pip install pyhwp)')):
+        rows.append((tool, shutil.which(tool) or '없음', bool(shutil.which(tool)), why))
+    for mod, why in (('docx', 'python-docx: DOCX'), ('openpyxl', 'XLSX'), ('pptx', 'python-pptx: PPTX'), ('pypdf', 'PDF 대체')):
+        try:
+            importlib.import_module(mod)
+            rows.append((mod, '있음', True, why))
+        except Exception:
+            rows.append((mod, '없음', False, why + ' (pip install 로 설치 권장)'))
+    for name, val, ok, why in rows:
+        print(f"{'OK ' if ok else '-- '} {name:12s} {val:40.40s} {'' if ok else why}")
+    if not (ok_py and rows[1][2]):
+        print('\n필수 조건이 충족되지 않았습니다.')
+        return 1
+    print('\n필수 조건 충족. (-- 표시는 선택 항목: 해당 형식 자료가 있을 때만 필요)')
+    return 0
 
 
 def cmd_coverage(a):
@@ -243,6 +278,7 @@ def main(argv=None):
     s.set_defaults(fn=cmd_answer)
     s = sub.add_parser('add-material'); s.add_argument('workspace'); s.add_argument('paths', nargs='+'); s.set_defaults(fn=cmd_add_material)
     s = sub.add_parser('coverage'); s.add_argument('workspace', nargs='?'); s.set_defaults(fn=cmd_coverage)
+    s = sub.add_parser('doctor', help='필수/선택 도구 점검'); s.set_defaults(fn=cmd_doctor)
     a = ap.parse_args(argv)
     rc = a.fn(a)
     sys.exit(rc or 0)

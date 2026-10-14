@@ -131,7 +131,8 @@ def convert_one(path):
     """Return (text or None, note). None text means: keep original (e.g. images) for direct viewing."""
     ext = os.path.splitext(path)[1].lower()
     if ext in TEXT_EXT:
-        raw = open(path, 'rb').read()
+        with open(path, 'rb') as f:
+            raw = f.read()
         for enc in ('utf-8-sig', 'cp949', 'latin-1'):
             try:
                 return raw.decode(enc), f'text ({enc})'
@@ -166,7 +167,8 @@ def convert_one(path):
         conv = via_libreoffice(path, 'pptx')
         return (pptx_to_text(conv), ext[1:] + ' (libreoffice)') if conv else (None, 'no converter')
     if ext in ('.html', '.htm'):
-        txt = open(path, 'rb').read().decode('utf-8', 'replace')
+        with open(path, 'rb') as f:
+            txt = f.read().decode('utf-8', 'replace')
         return re.sub(r'\s+\n', '\n', re.sub(r'<[^>]+>', ' ', txt)), 'html'
     if ext in IMAGE_EXT:
         return None, 'image (view directly)'
@@ -187,8 +189,10 @@ def convert_all(material_roots, out_dir):
             if text is not None:
                 dst = os.path.join(out_dir, label, rel + '.md')
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
-                open(dst, 'w', encoding='utf-8').write(f'<!-- converted from {label}:{rel} ({note}) -->\n' + text)
+                with open(dst, 'w', encoding='utf-8') as f:
+                    f.write(f'<!-- converted from {label}:{rel} ({note}) -->\n' + text)
                 entry.update(text=os.path.relpath(dst, out_dir), words=len(text.split()))
             index.append(entry)
-    json.dump(index, open(os.path.join(out_dir, 'index.json'), 'w'), ensure_ascii=False, indent=1)
+    with open(os.path.join(out_dir, 'index.json'), 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=1)
     return index

@@ -5,6 +5,7 @@ import concurrent.futures as cf, glob, json, os, re, shutil, time
 from . import inventory, materials
 from .claude import run_claude
 from .questions import QuestionStore
+from .util import read_json, write_json, read_text, write_text
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PHASES = ['inventory', 'survey', 'units', 'synthesize', 'gate1', 'characterize', 'review', 'gate2', 'finalize']
@@ -18,7 +19,7 @@ DEFAULT_CONFIG = {
     'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'characterize': 'opus',
                'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
     'parallel': 4,
-    'unit_tokens': 60000,
+    'unit_tokens': 90000,
     'group_synthesis_min_units': 9,   # hierarchical synthesis when there are more units than this
     'domains': None,                  # auto-detect: firmware | java_batch | generic
     'characterize': True,
@@ -27,7 +28,18 @@ DEFAULT_CONFIG = {
     'human': 'interactive',   # interactive | file | oracle | none
     'oracle_knowledge': None,
     'oracle_files': None,
+    'max_cost_usd': None,     # stop the run (resumable) when the accumulated cost exceeds this
 }
+
+GAP_SCHEMA = {'type': 'object', 'properties': {'gaps': {'type': 'array', 'items': {'type': 'object', 'properties': {
+    'id': {'type': 'string'}, 'file': {'type': 'string'}, 'item': {'type': 'string'},
+    'type': {'type': 'string'}, 'gap': {'type': 'string'}, 'needed': {'type': 'string'},
+    'severity': {'type': 'string', 'enum': ['blocking', 'important', 'minor']}},
+    'required': ['id', 'gap', 'needed', 'severity']}}}, 'required': ['gaps']}
+
+
+class BudgetExceeded(RuntimeError):
+    pass
 
 
 class Pipeline:
@@ -39,16 +51,15 @@ class Pipeline:
         cfg_path = os.path.join(self.ws, 'rekit.json')
         self.cfg = dict(DEFAULT_CONFIG)
         if os.path.exists(cfg_path):
-            user = json.load(open(cfg_path, encoding='utf-8'))
+            user = read_json(cfg_path, {})
             models = dict(DEFAULT_CONFIG['models']); models.update(user.get('models') or {})
             self.cfg.update(user); self.cfg['models'] = models
         self.state_path = os.path.join(self.rk, 'state.json')
-        self.state = json.load(open(self.state_path)) if os.path.exists(self.state_path) else {'phases': {}, 'units': {}, 'sessions': []}
+        self.state = read_json(self.state_path) or {'phases': {}, 'units': {}, 'sessions': []}
 
     # ---------- infrastructure ----------
     def save_state(self):
-        os.makedirs(self.rk, exist_ok=True)
-        json.dump(self.state, open(self.state_path, 'w'), ensure_ascii=False, indent=1)
+        write_json(self.state_path, self.state)
 
     def code_roots(self):
         return [(c['label'], os.path.abspath(c['path'])) for c in self.cfg['code']]
@@ -60,7 +71,7 @@ class Pipeline:
         return ', '.join(f'`{lbl}` = {p}' for lbl, p in roots) or '(none)'
 
     def render(self, name, **kw):
-        t = open(os.path.join(HERE, 'prompts', name), encoding='utf-8').read()
+        t = read_text(os.path.join(HERE, 'prompts', name))
         kw.setdefault('CODE_ROOTS', self.roots_text(self.code_roots()))
         kw.setdefault('MATERIAL_ROOTS', self.roots_text(self.material_roots()))
         kw.setdefault('LANG', self.cfg['language'])
@@ -69,6 +80,9 @@ class Pipeline:
         return t
 
     def claude(self, step, prompt, cwd=None, add_dirs=None, model_key=None, **kw):
+        budget = self.cfg.get('max_cost_usd')
+        if budget and self.total_cost() >= float(budget):
+            raise BudgetExceeded(f'비용 상한(${budget}) 도달: 누적 ${self.total_cost()}. rekit.json의 max_cost_usd를 올리고 다시 실행하세요.')
         model = self.cfg['models'].get(model_key or step.split(':')[0]) or self.cfg['models'].get('default')
         log_path = os.path.join(self.rk, 'logs', re.sub(r'[^\w.-]', '_', step) + '.jsonl')
         dirs = add_dirs if add_dirs is not None else [p for _, p in self.code_roots() + self.material_roots()]
@@ -94,16 +108,36 @@ class Pipeline:
     def p_inventory(self):
         os.makedirs(os.path.join(self.rk, 'prompts'), exist_ok=True)
         inv = inventory.scan(self.code_roots())
-        json.dump(inv, open(os.path.join(self.rk, 'inventory.json'), 'w'), ensure_ascii=False, indent=1)
-        open(os.path.join(self.rk, 'inventory.txt'), 'w', encoding='utf-8').write(
+        write_json(os.path.join(self.rk, 'inventory.json'), inv)
+        write_text(os.path.join(self.rk, 'inventory.txt'),
             f"# totals: {inv['totals']}\n# languages: {json.dumps(inv['languages'], ensure_ascii=False)}\n"
             f"# build files: {inv['build_files']}\n\n" + inventory.tree_summary(inv, max_lines=3000))
         materials.convert_all(self.material_roots(), os.path.join(self.rk, 'materials_text'))
-        open(os.path.join(self.rk, 'prompts', 'kitspec.md'), 'w', encoding='utf-8').write(self.render('kitspec.md'))
-        if not os.path.exists(os.path.join(self.rk, 'intake.md')):
-            open(os.path.join(self.rk, 'intake.md'), 'w', encoding='utf-8').write('# Intake\n(no intake answers)\n')
+        write_text(os.path.join(self.rk, 'prompts', 'kitspec.md'), self.render('kitspec.md'))
+        intake_p = os.path.join(self.rk, 'intake.md')
+        intake_txt = read_text(intake_p, '')
+        if not intake_txt or '(답변 없음)' in intake_txt or '(no intake answers)' in intake_txt:
+            if self.cfg.get('human') == 'oracle' and self.cfg.get('oracle_knowledge'):
+                self.oracle_intake(intake_p)
+            elif not os.path.exists(intake_p):
+                write_text(intake_p, '# Intake\n(no intake answers)\n')
         os.makedirs(self.kit, exist_ok=True)
         self.log(f"  · inventory: {inv['totals']['files']} files, {inv['totals']['loc']} LOC, ~{inv['totals']['tokens']} tokens")
+
+    def register_inbox(self):
+        """Files handed over by humans land in <ws>/materials_inbox: register as material root 'provided' and convert."""
+        inbox = os.path.join(self.ws, 'materials_inbox')
+        if not os.path.isdir(inbox) or not os.listdir(inbox):
+            return
+        if not any(m.get('label') == 'provided' for m in self.cfg['materials']):
+            self.cfg['materials'].append({'label': 'provided', 'path': inbox})
+            cfg_path = os.path.join(self.ws, 'rekit.json')
+            user = read_json(cfg_path, {})
+            user.setdefault('materials', [])
+            if not any(m.get('label') == 'provided' for m in user['materials']):
+                user['materials'].append({'label': 'provided', 'path': inbox})
+                write_json(cfg_path, user)
+        materials.convert_all(self.material_roots(), os.path.join(self.rk, 'materials_text'))
 
     def p_survey(self):
         r = self.claude('survey', self.render('survey.md', UNIT_TOKENS=self.cfg['unit_tokens']))
@@ -115,23 +149,23 @@ class Pipeline:
 
     def load_units(self):
         p = os.path.join(self.rk, 'units.json')
-        return json.load(open(p, encoding='utf-8')) if os.path.exists(p) else {}
+        return read_json(p) if os.path.exists(p) else {}
 
     def check_unit_coverage(self, units):
-        inv = json.load(open(os.path.join(self.rk, 'inventory.json')))
+        inv = read_json(os.path.join(self.rk, 'inventory.json'))
         listed = {f for u in units['units'] for f in u.get('files', [])} | {e['file'] for e in units.get('excluded', [])}
         missing = [f"{f['root']}:{f['path']}" for f in inv['files'] if f['kind'] == 'text'
                    and f"{f['root']}:{f['path']}" not in listed]
         if missing:
             units.setdefault('units', []).append({'id': 'MISC', 'title': 'Unassigned files (auto)', 'files': missing,
                                                   'focus': 'files the survey did not assign', 'depends_on': []})
-            json.dump(units, open(os.path.join(self.rk, 'units.json'), 'w'), ensure_ascii=False, indent=1)
+            write_json(os.path.join(self.rk, 'units.json'), units)
             self.log(f'  · {len(missing)} unassigned files put into unit MISC')
 
     def domains(self):
         if self.cfg.get('domains'):
             return self.cfg['domains']
-        inv = json.load(open(os.path.join(self.rk, 'inventory.json')))
+        inv = read_json(os.path.join(self.rk, 'inventory.json'))
         langs = inv.get('languages', {})
         loc = lambda *ls: sum(langs.get(l, {}).get('loc', 0) for l in ls)
         doms = []
@@ -146,7 +180,7 @@ class Pipeline:
         for d in self.domains():
             p = os.path.join(HERE, 'prompts', 'checklists', d + '.md')
             if os.path.exists(p):
-                parts.append(open(p, encoding='utf-8').read())
+                parts.append(read_text(p))
         return '\n'.join(parts)
 
     def p_units(self):
@@ -206,8 +240,7 @@ class Pipeline:
 
     def write_answered(self):
         store = QuestionStore(self.ws)
-        json.dump(store.answered_json(), open(os.path.join(self.rk, 'questions', 'answered.json'), 'w'),
-                  ensure_ascii=False, indent=1)
+        write_json(os.path.join(self.rk, 'questions', 'answered.json'), store.answered_json())
 
     def p_gate(self, name):
         """Ask humans (or oracle) the open questions of gate priorities; integrate answers into the kit."""
@@ -231,11 +264,9 @@ class Pipeline:
             return NEEDS_HUMAN
         todo = store.to_integrate()
         if todo:
-            new_mats = [f for q in todo for f in (q.get('files') or [])]
-            if new_mats:
-                materials.convert_all([('provided', os.path.join(self.ws, 'materials_inbox'))],
-                                      os.path.join(self.rk, 'materials_text'))
-            json.dump(todo, open(os.path.join(self.rk, 'questions', 'to_integrate.json'), 'w'), ensure_ascii=False, indent=1)
+            if any(q.get('files') for q in todo):
+                self.register_inbox()
+            write_json(os.path.join(self.rk, 'questions', 'to_integrate.json'), todo)
             self.claude(f'integrate:{name}', self.render('integrate.md'), model_key='integrate')
             store = QuestionStore(self.ws)
             store.mark_integrated({q['id'] for q in todo})
@@ -244,15 +275,35 @@ class Pipeline:
         self.write_answered()
         return 0
 
+    def oracle_intake(self, intake_p):
+        from .cli import INTAKE_QUESTIONS
+        store = QuestionStore(self.ws)
+        qs = [{'id': f'Q-INTAKE-{k.upper()}', 'kind': 'question', 'priority': 'important', 'question': q}
+              for k, q in INTAKE_QUESTIONS]
+        tmp = os.path.join(self.rk, 'questions', 'intake.json')
+        write_json(tmp, qs)
+        store.ingest_file(tmp, 'intake')
+        self.answer_with_oracle(store, [q for q in store.pending() if q['id'].startswith('Q-INTAKE-')])
+        by = store.by_id()
+        lines = ['# Intake (사람이 제공한 사전 정보)', '']
+        for k, q in INTAKE_QUESTIONS:
+            item = by.get(f'Q-INTAKE-{k.upper()}', {})
+            lines += [f'## {q}', item.get('answer') or '(답변 없음)', '']
+            if item.get('status') == 'answered':
+                item['integrated'] = True
+        store.save()
+        write_text(intake_p, '\n'.join(lines))
+        self.register_inbox()
+
     def answer_with_oracle(self, store, pending):
         """Experiment mode: a simulated domain expert answers from a hidden knowledge file."""
-        know = open(self.cfg['oracle_knowledge'], encoding='utf-8').read()
+        know = read_text(self.cfg['oracle_knowledge'])
         files_dir = self.cfg.get('oracle_files')
         files = []
         if files_dir and os.path.isdir(files_dir):
             files = sorted(os.path.relpath(os.path.join(dp, f), files_dir) for dp, _, fs in os.walk(files_dir) for f in fs)
         qs = [{k: q.get(k) for k in ('id', 'kind', 'question', 'context', 'options')} for q in pending]
-        prompt = open(os.path.join(HERE, 'prompts', 'oracle.md'), encoding='utf-8').read() \
+        prompt = read_text(os.path.join(HERE, 'prompts', 'oracle.md')) \
             .replace('{{KNOWLEDGE}}', know).replace('{{FILES}}', '\n'.join(files) or '(none)') \
             .replace('{{QUESTIONS}}', json.dumps(qs, ensure_ascii=False, indent=1))
         schema = {'type': 'object', 'properties': {'answers': {'type': 'array', 'items': {'type': 'object', 'properties': {
@@ -306,15 +357,16 @@ class Pipeline:
             out = os.path.join(rv, f'gaps_{aid}.json')
             if os.path.exists(out):
                 return aid
-            r = self.claude(f'review:{aid}', self.render('review.md', AREA=aid, AREA_ID=aid, FILES=files),
-                            cwd=box, add_dirs=[], allowed_tools=['Read', 'Glob', 'Grep'])
-            txt = r['result'] or ''
-            m = re.search(r'\[.*\]', txt, re.S)
-            try:
-                gaps = json.loads(m.group(0)) if m else []
-            except Exception:
-                gaps = []
-            json.dump(gaps, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+            r = self.claude(f'review:{aid}', self.render('review_v2.md', AREA=aid, AREA_ID=aid, FILES=files),
+                            cwd=box, add_dirs=[], allowed_tools=['Read', 'Glob', 'Grep'], json_schema=GAP_SCHEMA)
+            gaps = (r.get('structured') or {}).get('gaps')
+            if gaps is None:
+                m = re.search(r'\[.*\]', r['result'] or '', re.S)
+                try:
+                    gaps = json.loads(m.group(0)) if m else []
+                except Exception:
+                    gaps = []
+            write_json(out, gaps)
             return aid
 
         with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
@@ -323,12 +375,12 @@ class Pipeline:
         def fix(area):
             aid = area[0]
             gp = os.path.join(rv, f'gaps_{aid}.json')
-            gaps = json.load(open(gp)) if os.path.exists(gp) else []
+            gaps = read_json(gp) if os.path.exists(gp) else []
             gaps = [g for g in gaps if g.get('severity') in ('blocking', 'important')]
             done = os.path.join(rv, f'fixed_{aid}.json')
             if not gaps or os.path.exists(done):
                 return
-            json.dump(gaps, open(gp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+            write_json(gp, gaps)
             self.claude(f'fix:{aid}', self.render('fix.md', BATCH=aid))
 
         # fixes touch shared files (interfaces/data); run sequentially for SYS, in parallel for units
@@ -344,7 +396,7 @@ class Pipeline:
         self.coverage()
 
     def coverage(self):
-        inv = json.load(open(os.path.join(self.rk, 'inventory.json')))
+        inv = read_json(os.path.join(self.rk, 'inventory.json'))
         units = self.load_units()
         excluded = {e['file'] for e in units.get('excluded', [])}
         kit_text = ''
@@ -359,7 +411,7 @@ class Pipeline:
                'symbols_total': len(syms), 'symbols_referenced': len(syms) - len(unref_syms),
                'unreferenced_files': unref_files, 'unreferenced_symbols': unref_syms[:500],
                'kit_bytes': len(kit_text.encode('utf-8')), 'kit_tokens_est': int(len(kit_text.encode('utf-8')) / 3.6)}
-        json.dump(cov, open(os.path.join(self.rk, 'coverage.json'), 'w'), ensure_ascii=False, indent=1)
+        write_json(os.path.join(self.rk, 'coverage.json'), cov)
         return cov
 
     # ---------- driver ----------

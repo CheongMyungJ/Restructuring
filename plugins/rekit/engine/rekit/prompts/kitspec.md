@@ -65,3 +65,10 @@ Forbidden: vague phrases like "handles errors appropriately", "processes the dat
 Ask about: production configuration/environment, intent behind quirks (keep vs fix), doc-vs-code conflicts,
 compatibility requirements (formats, interfaces, on-media data), scope (unused features), missing materials
 (samples, master data, specs, datasheets). Do NOT ask what the code already answers.
+
+## Working style (all phases)
+- Write output files incrementally: one file (or one section) per Write/Edit call, each call ≤ ~300 lines. For long
+  specifications, create the file with the first sections and append the rest with further edits. Never try to compose
+  the whole kit in a single response.
+- Read code with the Read tool (or `cat -n` for line numbers) so that `(src: path:line)` references are exact.
+- Never modify the legacy code roots or materials. Use `.rekit/sandbox/` for any build/run experiments.

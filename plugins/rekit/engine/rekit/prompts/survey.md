@@ -21,8 +21,10 @@ Do:
     "contracts": [{"id": "IF-XXX-001", "title": "...", "kind": "api|file|db|protocol|ops|config|hw|media|message",
                    "where": ["<root>:<path>:<lines>"]}],
     "runnable": {"feasible": true, "how": "exact build/run commands and prerequisites", "needs": ["..."]}}
-   Rules: every text file of the inventory is in exactly one unit OR in "excluded" (with reason). Keep each unit at
-   most ~{{UNIT_TOKENS}} tokens of code (split large modules by responsibility; group tiny related files). Unit ids are
+   Rules: every text file of the inventory is in exactly one unit OR in "excluded" (with reason). Each analysis unit
+   is one AI session, and every session has a fixed overhead — so prefer FEW, LARGE, cohesive units: pack related files
+   up to ~{{UNIT_TOKENS}} tokens of code per unit (if the whole system is below that, ONE unit is ideal); split only
+   along real module boundaries when a module exceeds the limit. Unit ids are
    short UPPERCASE area codes (2–8 chars) reused as <AREA> in kit IDs. Order units bottom-up (dependencies first).
    Assign every unit to a subsystem "group" (3–12 groups for large systems; a single group is fine for small ones).
 4. Write initial human questions to `.rekit/questions/survey.json` (JSON array, kitspec question format, ids

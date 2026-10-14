@@ -1,13 +1,47 @@
 {
  "generation": {
+  "s2/kitgen_v1": {
+   "cost_usd": 18.53,
+   "wall_min": 47.6
+  },
+  "s2/naivedoc": {
+   "cost_usd": 5.78,
+   "wall_min": 16.2
+  },
+  "s1/kitgen_v1": {
+   "cost_usd": 10.55,
+   "wall_min": 33.2
+  },
   "s1/naivedoc": {
    "cost_usd": 2.48,
    "wall_min": 11.3
   },
   "s2/rekit_v1": {
+   "cost_usd": 44.53,
+   "wall_min": 128.6,
+   "sessions": 12,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done",
+    "gate1": "done",
+    "characterize": "running"
+   }
+  },
+  "s3/rekit_v2_none": {
    "cost_usd": 0,
    "wall_min": 0.0,
    "sessions": 0,
+   "phases": {
+    "inventory": "done",
+    "survey": "running"
+   }
+  },
+  "s3/rekit_v2_oracle": {
+   "cost_usd": 0.07,
+   "wall_min": 0.2,
+   "sessions": 1,
    "phases": {
     "inventory": "done",
     "survey": "running"
@@ -108,6 +142,382 @@
    "wall_min": 4.6,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V0/r2"
+  },
+  {
+   "sample": "s1",
+   "variant": "V1",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 0.81,
+   "wall_min": 4.0,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V1/r1"
+  },
+  {
+   "sample": "s1",
+   "variant": "V1",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.04,
+   "wall_min": 5.4,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V1/r2"
+  },
+  {
+   "sample": "s1",
+   "variant": "V2",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.55,
+   "wall_min": 8.2,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V2/r1"
+  },
+  {
+   "sample": "s1",
+   "variant": "V2",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.55,
+   "wall_min": 6.9,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V2/r2"
+  },
+  {
+   "sample": "s1",
+   "variant": "V3",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.13,
+   "wall_min": 4.9,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V3/r1"
+  },
+  {
+   "sample": "s1",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 0.95,
+   "wall_min": 3.6,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V3/r2"
+  },
+  {
+   "sample": "s1",
+   "variant": "V4",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.31,
+   "wall_min": 7.3,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V4/r1"
+  },
+  {
+   "sample": "s1",
+   "variant": "V4",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "score": 1.0,
+   "passed": 89,
+   "total": 89,
+   "categories": {
+    "build": {
+     "passed": 4,
+     "total": 4
+    },
+    "api": {
+     "passed": 5,
+     "total": 5
+    },
+    "capacity": {
+     "passed": 30,
+     "total": 30
+    },
+    "fill": {
+     "passed": 9,
+     "total": 9
+    },
+    "power_loss": {
+     "passed": 33,
+     "total": 33
+    },
+    "perf": {
+     "passed": 3,
+     "total": 3
+    },
+    "workload": {
+     "passed": 1,
+     "total": 1
+    },
+    "compat": {
+     "passed": 8,
+     "total": 8
+    }
+   },
+   "cost_usd": 1.13,
+   "wall_min": 6.9,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V4/r2"
   }
  ]
 }

@@ -55,7 +55,8 @@ def detect_lang(rel):
 
 
 def read_text(path):
-    raw = open(path, 'rb').read()
+    with open(path, 'rb') as f:
+        raw = f.read()
     for enc in ('utf-8', 'cp949', 'euc-kr', 'latin-1'):
         try:
             return raw.decode(enc), enc
