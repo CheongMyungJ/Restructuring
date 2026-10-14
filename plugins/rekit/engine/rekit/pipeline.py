@@ -23,7 +23,7 @@ DEFAULT_CONFIG = {
     'group_synthesis_min_units': 9,   # hierarchical synthesis when there are more units than this
     'domains': None,                  # auto-detect: firmware | java_batch | generic
     'characterize': True,
-    'review': True,
+    'review': False,
     'gate_priorities': ['blocking', 'important'],
     'human': 'interactive',   # interactive | file | oracle | none
     'oracle_knowledge': None,
@@ -36,8 +36,9 @@ PRESETS = {
     # measured on S2 (real SSD firmware, 70-question exam): see experiments/REPORT.md
     'max': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 10000,
             'characterize': True, 'review': True},
+    # review/fix measured: no gain on the S2 exam (94.1% vs 95.1% after synthesis) at 2.4x cost -> only in 'max'
     'balanced': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 20000,
-                 'characterize': True, 'review': True},
+                 'characterize': True, 'review': False},
     'economy': {'models': {**{k: 'sonnet' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 40000,
                 'characterize': True, 'review': False},
 }

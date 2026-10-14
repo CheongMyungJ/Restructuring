@@ -79,7 +79,7 @@ kit/
 
 ## 5. 동작 방식
 ```
-inventory → survey → units(병렬) → synthesize → gate1(사람) → characterize → review/fix → gate2(사람) → finalize
+inventory → survey → units(병렬) → synthesize → gate1(사람) → characterize → [review/fix] → gate2(사람) → finalize
 ```
 | 단계 | 내용 |
 |---|---|
@@ -89,7 +89,7 @@ inventory → survey → units(병렬) → synthesize → gate1(사람) → char
 | synthesize | 인터페이스·데이터·개요·흐름 통합, 질문 중복 제거·우선순위화 (대규모는 서브시스템별 계층 통합) |
 | gate | 사람에게 질문(blocking/important) → 답을 키트에 반영(DEC-*), 후속 질문 |
 | characterize | 레거시를 (시뮬레이터·스텁·임베디드 DB 등으로) 실제 빌드·실행해 **골든 테스트** 생성, 키트 교정 |
-| review/fix | **코드 없이 키트만 가진 구현자 AI**가 빠짐·모호함을 찾고, 코드를 보는 AI가 메우거나 질문으로 전환 |
+| review/fix (`max`만) | **코드 없이 키트만 가진 구현자 AI**가 빠짐·모호함을 찾고, 코드를 보는 AI가 메우거나 질문으로 전환 |
 | finalize | 소스 커버리지 점검, 구현 계획·README·추적표 완성 |
 
 각 AI 단계는 새 `claude -p` 세션이며, 상태는 작업폴더 `.rekit/`에 저장되어 **중단 후 재개**할 수 있습니다.
@@ -103,11 +103,14 @@ inventory → survey → units(병렬) → synthesize → gate1(사람) → char
 골든 테스트로 스스로 검증하며 진행합니다.
 
 ## 7. 프리셋·비용
-| 프리셋 | 모델 | 분석 단위 | 용도 |
-|---|---|---|---|
-| `max` | Opus | 작게(≈10K 토큰) | 정밀도 최우선 (실측 최고 정밀도) |
-| `balanced` (기본) | Opus | 중간(≈20K 토큰) | 일반 권장 |
-| `economy` | Sonnet | 크게(≈40K 토큰), 검토 생략 | 대형 코드베이스 1차 분석, 비용 절감 |
+| 프리셋 | 모델 | 분석 단위 | 단계 | 용도 |
+|---|---|---|---|---|
+| `max` | Opus | 작게(≈10K 토큰) | 특성화 + 검토/보완 | 정밀도 최우선 (비용 최대) |
+| `balanced` (기본) | Opus | 중간(≈20K 토큰) | 특성화 | 일반 권장 |
+| `economy` | Sonnet | 크게(≈40K 토큰) | 특성화 | 대형 코드베이스 1차 분석, 비용 절감 |
+
+검토/보완(review/fix: 코드 없이 키트만 가진 AI가 빈틈을 찾고 메움)은 실측에서 통합 직후 대비 정답률을 올리지 못하고
+(95.1% → 94.1%) 비용만 약 2.4배가 되어 `max`에서만 켭니다. 레거시를 실제 실행하는 특성화(골든 테스트)는 모든 프리셋에서 켭니다.
 비용은 코드 규모·단위 수에 비례합니다(실측: C 8.8K LOC 펌웨어 Opus 작은 단위 ≈ $45~85, Java 3.6K LOC 배치 ≈ $28~40,
 Sonnet은 약 1/5~1/8). `--budget`으로 상한을 두면 도달 시 멈추고 재개할 수 있습니다.
 
