@@ -1,6 +1,6 @@
 """rekit pipeline: inventory → survey → unit analysis (parallel) → synthesis → question gate → characterization →
 sufficiency review/fix → question gate → finalize.  Resumable; every AI step is a fresh headless Claude Code session."""
-import concurrent.futures as cf, glob, json, os, re, shutil, time
+import concurrent.futures as cf, copy, glob, json, os, re, shutil, threading, time
 
 from . import inventory, materials
 from .claude import run_claude
@@ -19,7 +19,7 @@ DEFAULT_CONFIG = {
     'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'characterize': 'opus',
                'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
     'parallel': 4,
-    'unit_tokens': 90000,
+    'unit_tokens': 20000,             # small focused units → more precise specs (S2: 95% vs 91% with one big unit)
     'group_synthesis_min_units': 9,   # hierarchical synthesis when there are more units than this
     'domains': None,                  # auto-detect: firmware | java_batch | generic
     'characterize': True,
@@ -29,6 +29,17 @@ DEFAULT_CONFIG = {
     'oracle_knowledge': None,
     'oracle_files': None,
     'max_cost_usd': None,     # stop the run (resumable) when the accumulated cost exceeds this
+}
+
+ALL_STEPS = ('survey', 'unit', 'synthesize', 'characterize', 'integrate', 'review', 'fix', 'finalize')
+PRESETS = {
+    # measured on S2 (real SSD firmware, 70-question exam): see experiments/REPORT.md
+    'max': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 10000,
+            'characterize': True, 'review': True},
+    'balanced': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 20000,
+                 'characterize': True, 'review': True},
+    'economy': {'models': {**{k: 'sonnet' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 40000,
+                'characterize': True, 'review': False},
 }
 
 GAP_SCHEMA = {'type': 'object', 'properties': {'gaps': {'type': 'array', 'items': {'type': 'object', 'properties': {
@@ -56,10 +67,19 @@ class Pipeline:
             self.cfg.update(user); self.cfg['models'] = models
         self.state_path = os.path.join(self.rk, 'state.json')
         self.state = read_json(self.state_path) or {'phases': {}, 'units': {}, 'sessions': []}
+        self._lock = threading.RLock()
 
     # ---------- infrastructure ----------
     def save_state(self):
-        write_json(self.state_path, self.state)
+        with self._lock:
+            snapshot = copy.deepcopy(self.state)
+        write_json(self.state_path, snapshot)
+
+    def update_state(self, fn):
+        """Mutate state under the lock (worker threads), then persist."""
+        with self._lock:
+            fn(self.state)
+        self.save_state()
 
     def code_roots(self):
         return [(c['label'], os.path.abspath(c['path'])) for c in self.cfg['code']]
@@ -87,9 +107,9 @@ class Pipeline:
         log_path = os.path.join(self.rk, 'logs', re.sub(r'[^\w.-]', '_', step) + '.jsonl')
         dirs = add_dirs if add_dirs is not None else [p for _, p in self.code_roots() + self.material_roots()]
         r = run_claude(prompt, cwd or self.ws, log_path, model=model, add_dirs=dirs, **kw)
-        self.state['sessions'].append({'step': step, 'cost_usd': r['cost_usd'], 'wall_s': r['wall_s'],
-                                       'turns': r['num_turns'], 'error': r['is_error'], 'model': model})
-        self.save_state()
+        rec = {'step': step, 'cost_usd': r['cost_usd'], 'wall_s': r['wall_s'], 'turns': r['num_turns'],
+               'error': r['is_error'], 'model': model}
+        self.update_state(lambda s: s['sessions'].append(rec))
         tag = 'ERROR' if r['is_error'] else 'ok'
         self.log(f'  · {step}: {tag} ({r["wall_s"]:.0f}s, ${r["cost_usd"]:.2f})')
         return r
@@ -102,7 +122,8 @@ class Pipeline:
         self.save_state()
 
     def total_cost(self):
-        return round(sum(s.get('cost_usd') or 0 for s in self.state['sessions']), 2)
+        with self._lock:
+            return round(sum(s.get('cost_usd') or 0 for s in self.state['sessions']), 2)
 
     # ---------- phases ----------
     def p_inventory(self):
@@ -193,8 +214,8 @@ class Pipeline:
                                  FOCUS=u.get('focus', ''), CHECKLIST=self.checklist())
             r = self.claude(f"unit:{u['id']}", prompt)
             ok = os.path.exists(os.path.join(self.kit, '05_behavior', f"{u['id']}.md"))
-            self.state['units'][u['id']] = 'done' if ok and not r['is_error'] else 'failed'
-            self.save_state()
+            status = 'done' if ok and not r['is_error'] else 'failed'
+            self.update_state(lambda s: s['units'].__setitem__(u['id'], status))
             return u['id'], ok
 
         with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
@@ -372,21 +393,21 @@ class Pipeline:
         with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
             list(ex.map(review, areas))
 
-        def fix(area):
-            aid = area[0]
+        # Fix gaps in batches (one session per subsystem group, SYS gaps first), sequentially: fixes edit shared
+        # interface/data files, and one session per batch keeps the context and avoids conflicting edits.
+        group_of = {u['id']: (u.get('group') or 'ALL') for u in units}
+        batches = {}
+        for aid, _ in areas:
             gp = os.path.join(rv, f'gaps_{aid}.json')
-            gaps = read_json(gp) if os.path.exists(gp) else []
-            gaps = [g for g in gaps if g.get('severity') in ('blocking', 'important')]
-            done = os.path.join(rv, f'fixed_{aid}.json')
-            if not gaps or os.path.exists(done):
-                return
-            write_json(gp, gaps)
-            self.claude(f'fix:{aid}', self.render('fix.md', BATCH=aid))
-
-        # fixes touch shared files (interfaces/data); run sequentially for SYS, in parallel for units
-        fix(areas[0])
-        with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
-            list(ex.map(fix, areas[1:]))
+            gaps = [g for g in (read_json(gp) or []) if g.get('severity') in ('blocking', 'important')]
+            if gaps:
+                key = 'SYS' if aid == 'SYS' else group_of.get(aid, 'ALL')
+                batches.setdefault(key, []).extend(gaps)
+        for key in sorted(batches, key=lambda k: (k != 'SYS', k)):
+            if os.path.exists(os.path.join(rv, f'fixed_{key}.json')):
+                continue
+            write_json(os.path.join(rv, f'batch_{key}.json'), batches[key])
+            self.claude(f'fix:{key}', self.render('fix.md', BATCH=key))
         shutil.rmtree(box, ignore_errors=True)
 
     def p_finalize(self):
@@ -420,7 +441,8 @@ class Pipeline:
                  'synthesize': self.p_synthesize, 'gate1': lambda: self.p_gate('gate1'),
                  'characterize': self.p_characterize, 'review': self.p_review,
                  'gate2': lambda: self.p_gate('gate2'), 'finalize': self.p_finalize}
-        for name in PHASES:
+        last = PHASES.index(until) if until in PHASES else len(PHASES) - 1
+        for name in PHASES[:last + 1]:
             if self.phase_done(name):
                 continue
             self.log(f'▶ {name}')
@@ -432,6 +454,4 @@ class Pipeline:
                 return NEEDS_HUMAN
             self.mark(name, 'done')
             self.log(f'  ✓ {name} ({time.time() - t0:.0f}s, 누적 ${self.total_cost()})')
-            if until and name == until:
-                break
         return 0

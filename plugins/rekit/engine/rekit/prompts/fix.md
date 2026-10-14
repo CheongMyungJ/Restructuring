@@ -1,6 +1,6 @@
 # Phase: GAP FIXING
 
-Read `.rekit/prompts/kitspec.md` and the gap list `.rekit/review/gaps_{{BATCH}}.json` (found by an implementer who only
+Read `.rekit/prompts/kitspec.md` and the gap list `.rekit/review/batch_{{BATCH}}.json` (found by an implementer who only
 had the kit). Legacy code roots (read-only): {{CODE_ROOTS}}. Materials: `.rekit/materials_text/`.
 
 For each gap: investigate the legacy code (and materials) and fix the kit precisely (with src refs and confidence tags).

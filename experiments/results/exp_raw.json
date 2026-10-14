@@ -8,6 +8,10 @@
    "cost_usd": 5.78,
    "wall_min": 16.2
   },
+  "s4/naivedoc": {
+   "cost_usd": 3.94,
+   "wall_min": 13.1
+  },
   "s1/kitgen_v1": {
    "cost_usd": 10.55,
    "wall_min": 33.2
@@ -16,20 +20,37 @@
    "cost_usd": 2.48,
    "wall_min": 11.3
   },
-  "s2/rekit_v1": {
-   "cost_usd": 44.53,
-   "wall_min": 128.6,
-   "sessions": 12,
+  "s3/kitgen_v1": {
+   "cost_usd": 12.06,
+   "wall_min": 40.7
+  },
+  "s3/naivedoc": {
+   "cost_usd": 3.39,
+   "wall_min": 10.5
+  },
+  "s2/rekit_v2_sonnet_small": {
+   "cost_usd": 8.98,
+   "wall_min": 46.7,
+   "sessions": 9,
    "phases": {
     "inventory": "done",
     "survey": "done",
     "units": "done",
-    "synthesize": "done",
-    "gate1": "done",
-    "characterize": "running"
+    "synthesize": "done"
    }
   },
-  "s3/rekit_v2_none": {
+  "s2/rekit_v2_sonnet": {
+   "cost_usd": 5.01,
+   "wall_min": 23.0,
+   "sessions": 3,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done"
+   }
+  },
+  "s2/rekit_v4_max": {
    "cost_usd": 0,
    "wall_min": 0.0,
    "sessions": 0,
@@ -38,13 +59,85 @@
     "survey": "running"
    }
   },
-  "s3/rekit_v2_oracle": {
-   "cost_usd": 0.07,
-   "wall_min": 0.2,
-   "sessions": 1,
+  "s2/rekit_v4_balanced": {
+   "cost_usd": 0,
+   "wall_min": 0.0,
+   "sessions": 0,
    "phases": {
     "inventory": "done",
     "survey": "running"
+   }
+  },
+  "s2/rekit_v2_opus": {
+   "cost_usd": 13.74,
+   "wall_min": 35.7,
+   "sessions": 3,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done"
+   }
+  },
+  "s2/rekit_v1": {
+   "cost_usd": 68.84,
+   "wall_min": 210.7,
+   "sessions": 21,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done",
+    "gate1": "done",
+    "characterize": "done",
+    "review": "running"
+   }
+  },
+  "s4/rekit_v3_oracle": {
+   "cost_usd": 10.63,
+   "wall_min": 30.6,
+   "sessions": 5,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "running"
+   }
+  },
+  "s4/rekit_v3_none": {
+   "cost_usd": 5.62,
+   "wall_min": 16.7,
+   "sessions": 3,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "running"
+   }
+  },
+  "s3/rekit_v2_none": {
+   "cost_usd": 21.09,
+   "wall_min": 65.3,
+   "sessions": 6,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done",
+    "gate1": "done",
+    "characterize": "done",
+    "review": "running"
+   }
+  },
+  "s3/rekit_v2_oracle": {
+   "cost_usd": 15.43,
+   "wall_min": 43.4,
+   "sessions": 6,
+   "phases": {
+    "inventory": "done",
+    "survey": "done",
+    "units": "done",
+    "synthesize": "done",
+    "gate1": "done",
+    "characterize": "running"
    }
   }
  },
@@ -518,6 +611,331 @@
    "wall_min": 6.9,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s1/V4/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V0",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 3.91,
+   "wall_min": 30.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V0/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V0",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 3.19,
+   "wall_min": 23.8,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V0/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V1",
+   "rep": 1,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 2.09,
+   "wall_min": 17.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V1/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V1",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 1.85,
+   "wall_min": 11.2,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V1/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "kitgen_v1",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 2.26,
+   "wall_min": 17.0,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V3/r2"
   }
  ]
 }

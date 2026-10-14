@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:batch="http://www.springframework.org/schema/batch"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+    <import resource="classpath:META-INF/spring/context-common.xml"/>
+    <import resource="classpath:META-INF/spring/context-batch.xml"/>
+
+    <!-- ================================================================ -->
+    <!--  PURGE : 보관기간 경과 테스트결과 삭제                                 -->
+    <!-- ================================================================ -->
+    <batch:job id="purgeJob" restartable="false">
+        <batch:validator ref="bizDateValidator"/>
+        <batch:step id="purgeStep">
+            <batch:tasklet ref="purgeTasklet" transaction-manager="transactionManager"/>
+        </batch:step>
+        <batch:listeners>
+            <batch:listener ref="jobLogListener"/>
+        </batch:listeners>
+    </batch:job>
+
+    <bean id="purgeTasklet" class="kr.co.dhsemi.tlog.purge.PurgeTasklet" scope="step">
+        <property name="bizDate" value="#{jobParameters['BIZ_DATE']}"/>
+        <property name="fileLogDao" ref="fileLogDao"/>
+    </bean>
+
+</beans>

@@ -18,6 +18,13 @@ def normalize(d):
         return {'passed': t['checks_passed'], 'total': t['checks_total'],
                 'score': round(t['checks_passed'] / t['checks_total'], 4) if t['checks_total'] else 0,
                 'categories': cats, 'failed_ids': failed, 'build': build}
+    if 'overall' in d and isinstance(d.get('overall'), dict):            # S4-style
+        o = d['overall']
+        cats = {k: {'passed': v.get('pass', 0), 'total': v.get('total', 0)} for k, v in (d.get('categories') or {}).items()}
+        failed = [f"{c.get('category')}::{c.get('name')}" for c in d.get('checks', []) if not c.get('pass')]
+        nb = {k: v for k, v in cats.items() if k != 'build'}
+        return {'passed': o.get('pass'), 'total': o.get('total'), 'score': o.get('score'),
+                'categories': cats, 'failed_ids': failed}
     if 'passed' in d and 'total' in d:                                   # S1-style (flat checks)
         failed = [f"{c.get('category')}::{c.get('name')}" for c in d.get('checks', []) if not c.get('pass')]
         return {'passed': d['passed'], 'total': d['total'], 'score': d.get('score'),

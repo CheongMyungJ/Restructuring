@@ -1,0 +1,1355 @@
+[
+  {
+    "id": "Q01",
+    "category": "architecture_control_flow",
+    "difficulty": "easy",
+    "question": "What does main() do before handing control to the FTL/NVMe code? Include the MMU cacheability layout it programs and how the interrupt is wired.",
+    "answer": "main() disables the I-cache, D-cache and MMU, then programs all 4096 1-MiB section descriptors: sections 0x000-0x001 (0x00000000-0x001FFFFF) cached & buffered (attribute 0xC1E), 0x002-0x17F (0x00200000-0x17FFFFFF) uncached & non-buffered (0xC12), 0x180-0x3FF (0x18000000-0x3FFFFFFF) cached & buffered (0xC1E), and everything from 0x40000000 upward uncached (0xC12). It re-enables the MMU, I-cache and D-cache, initializes exception handling and the GIC (XScuGic), registers the GIC dispatcher for IRQ exceptions, connects GIC interrupt ID 61 to dev_irq_handler and enables it, enables IRQ exceptions, calls dev_irq_init() (writes the NVMe-IP device IRQ mask register with pcieLink, busMaster, pcieIrq, pcieMsi, pcieMsix, nvmeCcEn, nvmeCcShn, mAxiWriteErr, pcieMreqErr, pcieCpldErr and pcieCpldLenErr set; mAxiReadErr is not set) and finally calls nvme_main(), which runs InitFTL() and then an endless polling loop (never returns). Note: the revision comment says the uncached window ends at 0x179FFFFF, but the code makes the whole 0x00200000-0x17FFFFFF range uncached.",
+    "key_points": [
+      "Caches and MMU are disabled, a 1-MiB section table is programmed, then MMU and caches are re-enabled",
+      "0x00000000-0x001FFFFF and 0x18000000-0x3FFFFFFF cached; 0x00200000-0x17FFFFFF and >= 0x40000000 uncached",
+      "GIC interrupt ID 61 is connected to dev_irq_handler and IRQs are enabled",
+      "dev_irq_init() programs the device IRQ mask (CC.EN, CC.SHN, PCIe link/bus-master/MSI/MSI-X and error bits)",
+      "nvme_main() is called last; it runs InitFTL() before its infinite loop"
+    ],
+    "source_refs": [
+      "main.c:85-132",
+      "nvme/host_lld.c:66-84",
+      "nvme/nvme_main.c:73-84"
+    ]
+  },
+  {
+    "id": "Q02",
+    "category": "architecture_control_flow",
+    "difficulty": "medium",
+    "question": "Describe the NVMe controller task state machine (g_nvmeTask.status): list the states and explain which code performs each transition and which register actions accompany it.",
+    "answer": "States: NVME_TASK_IDLE = 0 (initial value; g_nvmeTask is a zero-initialized global), WAIT_CC_EN = 1, RUNNING = 2, SHUTDOWN = 3, WAIT_RESET = 4, RESET = 5. The interrupt handler dev_irq_handler changes state on events: CC.EN interrupt with CC.EN == 1 -> WAIT_CC_EN, with CC.EN == 0 -> RESET; CC.SHN interrupt with CC.SHN == 1 -> SHUTDOWN; PCIe link interrupt with link down -> RESET. The main loop acts on the states: WAIT_CC_EN: if CC.EN reads 1, enable the admin queue (sqValid = 1, cqValid = 1, cqIrqEn = 1), set CSTS.RDY = 1, go to RUNNING. RUNNING: fetch and process commands. SHUTDOWN: if CC.SHN != 0, set CSTS.SHST = 1, disable I/O SQ/CQ 0..7, clear the admin-queue register, cacheEn = 0, set CSTS.SHST = 2, go to WAIT_RESET, then rewrite the booked bad-block tables. WAIT_RESET: when CC.EN reads 0, cacheEn = 0, SHST = 0, RDY = 0, go to IDLE. RESET: disable I/O SQ/CQ 0..7, cacheEn = 0, clear admin queue, SHST = 0, RDY = 0, go to IDLE. IDLE does nothing (waits for the next CC.EN interrupt).",
+    "key_points": [
+      "Six states: IDLE 0, WAIT_CC_EN 1, RUNNING 2, SHUTDOWN 3, WAIT_RESET 4, RESET 5",
+      "IRQ handler sets WAIT_CC_EN (CC.EN=1), RESET (CC.EN=0 or PCIe link down) and SHUTDOWN (CC.SHN=1)",
+      "WAIT_CC_EN: enable admin SQ/CQ (with CQ IRQ) and set CSTS.RDY=1, then RUNNING",
+      "SHUTDOWN: SHST=1, clear queues, SHST=2, then WAIT_RESET which waits for CC.EN=0 and clears SHST/RDY -> IDLE",
+      "RESET: clear the 8 I/O SQ/CQs and admin queue, SHST=0, RDY=0 -> IDLE"
+    ],
+    "source_refs": [
+      "nvme/nvme.h:191-196",
+      "nvme/host_lld.c:86-152",
+      "nvme/nvme_main.c:84-176"
+    ]
+  },
+  {
+    "id": "Q03",
+    "category": "architecture_control_flow",
+    "difficulty": "medium",
+    "question": "In the RUNNING state, what exactly happens in one iteration of the nvme_main() loop, and under which condition is the low-level (NAND/DMA) scheduler executed?",
+    "answer": "Each iteration starts with exeLlr = 1. get_nvme_cmd() polls the command FIFO register once. If a valid command is present and qID == 0, handle_nvme_admin_cmd() processes it synchronously and posts its completion; otherwise handle_nvme_io_cmd() splits the Read/Write into slice requests and ReqTransSliceToLowLevel() is called immediately to turn all queued slice requests into buffer/NAND/DMA requests, and exeLlr is set to 0. At the end of the iteration, CheckDoneNvmeDmaReq() followed by SchedulingNandReq() (one pass over all channels) runs only if exeLlr == 1 AND (the NVMe DMA queue is non-empty OR notCompletedNandReqCnt != 0 OR blockedReqCnt != 0). Consequently at most one host command is fetched per iteration and scheduling is skipped in iterations that accepted an I/O command (command intake is prioritized); otherwise scheduling only happens inside the Sync* helper loops (e.g. when the request pool runs out).",
+    "key_points": [
+      "At most one command is fetched per iteration via get_nvme_cmd()",
+      "qID 0 goes to the admin handler; other queues go to handle_nvme_io_cmd followed by ReqTransSliceToLowLevel",
+      "exeLlr is cleared after an I/O command so the scheduler is skipped in that iteration",
+      "Scheduler runs only if exeLlr and (DMA queue non-empty or notCompletedNandReqCnt or blockedReqCnt)",
+      "Scheduler = CheckDoneNvmeDmaReq() then SchedulingNandReq() over all channels"
+    ],
+    "source_refs": [
+      "nvme/nvme_main.c:84-120",
+      "nvme/nvme_main.c:177-181",
+      "request_schedule.c:136-142"
+    ]
+  },
+  {
+    "id": "Q04",
+    "category": "architecture_control_flow",
+    "difficulty": "medium",
+    "question": "What is the firmware's execution/concurrency model, and what are the blocking 'Sync' helper loops (their exit conditions and their callers)?",
+    "answer": "Single-threaded, bare-metal, cooperative polling; there is no RTOS and no NAND or DMA completion interrupt. NAND ready/busy bits, status reports, completion flags and the host-DMA FIFO pointers are all polled. The only ISR (GIC ID 61, dev_irq_handler) logs PCIe events and changes g_nvmeTask.status. Three blocking helpers each loop on CheckDoneNvmeDmaReq() + SchedulingNandReq(): SyncAllLowLevelReqDone() until the NVMe DMA queue is empty, notCompletedNandReqCnt == 0 and blockedReqCnt == 0 (used by InitNandArray, ReadBadBlockTable, FindBadBlock, SaveBadBlockTable, EraseTotalBlockSpace and EraseUserBlockSpace, i.e. at boot and for the shutdown BBT save); SyncAvailFreeReq() until the free request queue is non-empty (called by GetFromFreeReqQ when the pool is exhausted); SyncReleaseEraseReq(ch, way, block) until that block's blockedEraseReqFlag clears (called when a read targets a block with a blocked erase).",
+    "key_points": [
+      "Single-threaded polling loop without RTOS; NAND/DMA completion is polled, the ISR only updates NVMe state",
+      "SyncAllLowLevelReqDone waits for an empty DMA queue, zero outstanding NAND requests and zero blocked requests (init/BBT operations)",
+      "SyncAvailFreeReq runs the scheduler until a free request exists; called from GetFromFreeReqQ",
+      "SyncReleaseEraseReq runs the scheduler until the block's blocked erase is released; called for reads to such a block",
+      "Every Sync helper loops CheckDoneNvmeDmaReq() + SchedulingNandReq()"
+    ],
+    "source_refs": [
+      "request_schedule.c:109-134",
+      "request_allocation.c:133-143",
+      "request_transform.c:302-308",
+      "request_transform.c:376-381",
+      "ftl_config.c:148",
+      "address_translation.c:295",
+      "address_translation.c:457",
+      "nvme/host_lld.c:86-174"
+    ]
+  },
+  {
+    "id": "Q05",
+    "category": "architecture_control_flow",
+    "difficulty": "hard",
+    "question": "What happens when the host requests a normal shutdown (CC.SHN = 01b)? Is any user data or FTL metadata flushed, and in what order relative to reporting shutdown complete? What about an abrupt shutdown request (CC.SHN = 10b)?",
+    "answer": "dev_irq_handler sees the CC.SHN interrupt and, only if CC.SHN == 1, sets the state to SHUTDOWN. The main loop then (if CC.SHN != 0): sets CSTS.SHST = 1 (processing), disables all 8 I/O CQs and SQs, clears the admin-queue register, sets cacheEn = 0, sets CSTS.SHST = 2 (complete), changes the state to WAIT_RESET, and only after that calls UpdateBadBlockTableForGrownBadBlock(RESERVED_DATA_BUFFER_BASE_ADDR): for dies whose grownBadUpdate is BOOKED it rebuilds the one-byte-per-block table from phyBlockMap and erases physical block 0 and programs page 1. SaveBadBlockTable ends with SyncAllLowLevelReqDone, so already-queued NAND/DMA requests are drained - but only after SHST = 2 was reported. Dirty data-buffer entries are NOT evicted/written to NAND and the mapping tables / block metadata are never saved. An abrupt shutdown (CC.SHN = 2) does not change the state in the IRQ handler (it only tests == 1), so nothing is done for it.",
+    "key_points": [
+      "Sequence: SHST=1, I/O SQ/CQs and admin queue disabled, SHST=2, state WAIT_RESET",
+      "Grown-bad BBT update (erase block 0, program page 1 for BOOKED dies) happens after SHST=2 is reported",
+      "Dirty write-back buffer contents are not flushed and the mapping/block metadata are not persisted",
+      "CC.SHN=10b (abrupt) is ignored by the IRQ handler (only value 1 triggers SHUTDOWN)"
+    ],
+    "source_refs": [
+      "nvme/host_lld.c:145-152",
+      "nvme/nvme_main.c:121-146",
+      "address_translation.c:880-916",
+      "address_translation.c:398-463"
+    ]
+  },
+  {
+    "id": "Q06",
+    "category": "architecture_control_flow",
+    "difficulty": "medium",
+    "question": "Describe the layered request pipeline from an NVMe Read/Write command to its completion: which request types and queues are used at each stage, and who posts the NVMe completion?",
+    "answer": "1) handle_nvme_io_cmd -> ReqTransNvmeToSlice splits the LBA range into slice requests (reqType SLICE, reqCode READ/WRITE, one per 16 KiB logical slice) appended to the single slice queue. 2) ReqTransSliceToLowLevel pops each slice request and looks up/allocates a data-buffer entry (hash + LRU); on a miss, eviction of a dirty entry creates a NAND WRITE request (EvictDataBufEntry), and a NAND READ request is created for reads or partial writes (DataReadFromNand); the slice request itself is converted into an NVMe DMA request (reqType NVME_DMA, reqCode RxDMA for writes, TxDMA for reads). 3) Each low-level request goes through SelectLowLevelReqQ: if it is blocked on its buffer it waits in the blocked-by-buffer-dependency queue; NAND requests then pass the row-address dependency check into the per-(channel,way) NAND request queue or wait in the per-(channel,way) blocked-by-row-address queue; DMA requests are issued to the host DMA engine at once and kept in the NVMe DMA queue. 4) SchedulingNandReq executes the head of each die's NAND queue; CheckDoneNvmeDmaReq detects finished DMAs. 5) On completion (GetFromNandReqQ / SelectiveGetFromNvmeDmaReqQ) the request returns to the free queue and the next request chained on the same buffer is released. The NVMe completion-queue entry for Read/Write is produced by the host-interface hardware (auto-completion flag set on every DMA), not by firmware code.",
+    "key_points": [
+      "NVMe command becomes slice requests in the slice queue (one per 16 KiB slice)",
+      "Slice processing may add a NAND write (eviction) and a NAND read (miss/RMW), then the slice becomes an RxDMA/TxDMA request",
+      "Queues: blocked-by-buffer-dependency, per-die blocked-by-row-address, per-die NAND queues, NVMe DMA queue",
+      "Completion frees the request and releases the next request waiting on the same buffer",
+      "Read/Write CQ entries are posted by hardware auto-completion, not by firmware"
+    ],
+    "source_refs": [
+      "nvme/nvme_io_cmd.c:116-154",
+      "request_transform.c:78-158",
+      "request_transform.c:162-276",
+      "request_transform.c:406-475",
+      "request_transform.c:575-611",
+      "request_allocation.c:344-426"
+    ]
+  },
+  {
+    "id": "Q07",
+    "category": "configuration_geometry",
+    "difficulty": "easy",
+    "question": "What NAND geometry does the firmware assume (bytes per row, rows per block, blocks per LUN, LUNs per die, ways and channels)?",
+    "answer": "A row (page) is 16,384 data bytes + 1,664 spare bytes = 18,048 bytes. Rows per block: 128 in SLC usage (ROWS_PER_SLC_BLOCK) and 256 physically (ROWS_PER_MLC_BLOCK). Per LUN: 4,096 main blocks + 88 extended blocks = 4,184 blocks. LUNS_PER_DIE = 2, i.e. 8,192 main / 8,368 total blocks per die. NSC_MAX_WAYS = 8 ways per channel; the channel count is NUMBER_OF_CONNECTED_CHANNEL = number of NAND storage controllers present in xparameters (XPAR_TIGER4NSC_0..7_BASEADDR), at most 8. Factory bad-block marks are checked on page 0 and page 255 (ROWS_PER_MLC_BLOCK-1) at byte 0 and byte 16384 (first spare byte).",
+    "key_points": [
+      "16384 data + 1664 spare bytes per row (18048 total)",
+      "128 rows per SLC block, 256 rows per MLC block",
+      "4096 main + 88 extended = 4184 blocks per LUN; 2 LUNs per die (8368 total blocks per die)",
+      "8 ways per channel; channel count = number of NSC instances detected at build time (max 8)"
+    ],
+    "source_refs": [
+      "ftl_config.h:54-113",
+      "ftl_config.h:120-142",
+      "ftl_config.h:151-153"
+    ]
+  },
+  {
+    "id": "Q08",
+    "category": "configuration_geometry",
+    "difficulty": "easy",
+    "question": "What is the FTL mapping unit ('slice') and how does it relate to the NAND page and to the NVMe logical block?",
+    "answer": "A slice is the FTL mapping unit: 16,384 data bytes + 256 spare bytes. SLICES_PER_PAGE = 16384 / 16384 = 1, so the mapping is pure page-level (one slice = one NAND page). The NVMe logical block is 4,096 bytes (BYTES_PER_NVME_BLOCK), so NVME_BLOCKS_PER_SLICE = NVME_BLOCKS_PER_PAGE = 4 and the logical slice address is LSA = LBA / 4. Only 256 bytes of the 1,664-byte spare area are exposed per page (the last 8 of them are used by the ECC engine's CRC); the remaining 1,408 spare bytes hold ECC parity.",
+    "key_points": [
+      "Slice = 16 KiB data + 256 B spare = one NAND page (page-level mapping)",
+      "NVMe LBA size is 4 KiB; 4 LBAs per slice; LSA = LBA / 4",
+      "256 B of spare exposed per page, last 8 B used for the ECC CRC; rest of the spare is ECC parity"
+    ],
+    "source_refs": [
+      "ftl_config.h:156-158",
+      "ftl_config.h:172-173",
+      "ftl_config.h:191-195",
+      "request_transform.c:85"
+    ]
+  },
+  {
+    "id": "Q09",
+    "category": "configuration_geometry",
+    "difficulty": "easy",
+    "question": "Which FTL parameters are marked as user-configurable, what are their default values, and what does BITS_PER_FLASH_CELL change?",
+    "answer": "BITS_PER_FLASH_CELL = SLC_MODE (1) (MLC_MODE = 2 is the only alternative), USER_BLOCKS_PER_LUN = 4096, USER_CHANNELS = NUMBER_OF_CONNECTED_CHANNEL, USER_WAYS = 8. USER_PAGES_PER_BLOCK = PAGES_PER_SLC_BLOCK (128) x BITS_PER_FLASH_CELL: in the default SLC mode only 128 pages per block are used, placed on the LSB pages of the 256-page MLC block (Vpage2PlsbPageTranslation is applied in GenerateNandRowAddr); in MLC mode all 256 pages are used directly, which doubles SLICES_PER_BLOCK, SLICES_PER_SSD, MB_PER_BLOCK and the map sizes.",
+    "key_points": [
+      "Default BITS_PER_FLASH_CELL = SLC_MODE (1)",
+      "USER_BLOCKS_PER_LUN = 4096, USER_WAYS = 8, USER_CHANNELS = number of connected channels",
+      "USER_PAGES_PER_BLOCK = 128 x BITS_PER_FLASH_CELL (128 in SLC, 256 in MLC)",
+      "SLC mode uses only the LSB pages of MLC blocks via a page translation"
+    ],
+    "source_refs": [
+      "ftl_config.h:181-189",
+      "ftl_config.h:199-213",
+      "request_schedule.c:713-716"
+    ]
+  },
+  {
+    "id": "Q10",
+    "category": "configuration_geometry",
+    "difficulty": "medium",
+    "question": "For a build with 8 connected channels in the default SLC mode, give USER_DIES, SLICES_PER_BLOCK, USER_BLOCKS_PER_DIE, USER_BLOCKS_PER_SSD, SLICES_PER_SSD, MB_PER_BLOCK, MB_PER_SSD, the number of data-buffer entries and the size of the request pool.",
+    "answer": "USER_DIES = 8 x 8 = 64; SLICES_PER_BLOCK = 128; USER_BLOCKS_PER_DIE = 4096 x 2 = 8,192; USER_BLOCKS_PER_SSD = 8,192 x 64 = 524,288; USER_PAGES_PER_DIE = 128 x 4096 x 2 = 1,048,576, so SLICES_PER_SSD = 67,108,864 (2^26); MB_PER_BLOCK = 16,384 x 128 / 1 MiB = 2; MB_PER_SSD = 1,048,576 MB (1 TiB raw). Data-buffer entries = 16 x USER_DIES = 1,024 (16 MiB of data buffer), temporary entries = 64; request pool = USER_DIES x 128 = 8,192 request slots.",
+    "key_points": [
+      "USER_DIES = 64",
+      "SLICES_PER_SSD = 67,108,864",
+      "USER_BLOCKS_PER_SSD = 524,288; MB_PER_BLOCK = 2; MB_PER_SSD = 1,048,576",
+      "1,024 data-buffer entries and 64 temporary entries",
+      "8,192 request slots"
+    ],
+    "source_refs": [
+      "ftl_config.h:191-216",
+      "data_buffer.h:52-53",
+      "request_allocation.h:53"
+    ]
+  },
+  {
+    "id": "Q11",
+    "category": "configuration_geometry",
+    "difficulty": "hard",
+    "question": "How is the exported capacity (storageCapacity_L) computed, what is deducted, what is its value for an 8-channel SLC build with no unremappable bad blocks, and where is it reported?",
+    "answer": "storageCapacity_L = (MB_PER_SSD - (MB_PER_MIN_FREE_BLOCK_SPACE + mbPerbadBlockSpace + MB_PER_OVER_PROVISION_BLOCK_SPACE)) x (1 MiB / 4096) = x 256, i.e. it is expressed in 4 KiB LBAs. MB_PER_MIN_FREE_BLOCK_SPACE = USER_DIES x MB_PER_BLOCK (one block per die); MB_PER_OVER_PROVISION_BLOCK_SPACE = (USER_BLOCKS_PER_SSD / 10) x MB_PER_BLOCK (about 10%, integer division); mbPerbadBlockSpace = (maximum over dies of bad blocks that could not be remapped) x USER_DIES x MB_PER_BLOCK, computed in RemapBadBlock. MB_PER_METADATA_BLOCK_SPACE is defined but NOT subtracted. 8 channels, SLC: 1,048,576 - (128 + 0 + 104,856) = 943,592 MB -> 241,559,552 LBAs. It is a 32-bit value: Identify Namespace reports NSZE = NCAP = NUSE = storageCapacity_L with the upper dword 0 (STORAGE_CAPACITY_H), and the I/O handlers assert startLba < storageCapacity_L.",
+    "key_points": [
+      "Formula: (MB_PER_SSD - (min-free + bad-block + over-provision MB)) x 256 LBAs per MB",
+      "Min-free = 1 block per die; over-provisioning = 10% of user blocks; bad = worst die's unremappable count x USER_DIES x MB_PER_BLOCK",
+      "The metadata block space constant is not deducted",
+      "8-channel SLC value: 943,592 MB = 241,559,552 LBAs",
+      "Reported as NSZE/NCAP/NUSE (low dword only)"
+    ],
+    "source_refs": [
+      "ftl_config.h:215-219",
+      "ftl_config.c:70-72",
+      "address_translation.c:194-201",
+      "nvme/nvme_identify.c:156-161",
+      "nvme/nvme_io_cmd.c:80"
+    ]
+  },
+  {
+    "id": "Q12",
+    "category": "configuration_geometry",
+    "difficulty": "medium",
+    "question": "Which configuration restrictions are verified at FTL initialization, and can an 8-channel build run in MLC mode?",
+    "answer": "CheckConfigRestriction asserts: USER_CHANNELS <= NSC_MAX_CHANNELS; USER_WAYS <= NSC_MAX_WAYS (8); USER_BLOCKS_PER_LUN <= MAIN_BLOCKS_PER_LUN (4096); BITS_PER_FLASH_CELL is SLC_MODE or MLC_MODE; RESERVED_DATA_BUFFER_BASE_ADDR + 0x00200000 <= COMPLETE_FLAG_TABLE_ADDR (0x17000000); TEMPORARY_PAY_LOAD_ADDR + 0x1000 <= DATA_BUFFER_MAP_ADDR (0x18000000); FTL_MANAGEMENT_END_ADDR <= DRAM_END_ADDR (0x3FFFFFFF). InitChCtlReg additionally asserts USER_CHANNELS >= 1. With 8 channels in MLC mode the two 4-byte-per-slice maps are 512 MiB each, FTL_MANAGEMENT_END_ADDR becomes 0x58A7883F > 0x3FFFFFFF, and the 'Metadata of FTL is too large to be allocated to DRAM' assert fires - an 8-channel MLC configuration does not fit the 1 GiB DRAM map as written.",
+    "key_points": [
+      "Checks channel count, ways (<= 8), user blocks per LUN (<= 4096) and BITS_PER_FLASH_CELL in {1,2}",
+      "Checks the reserved buffer has 2 MiB below 0x17000000",
+      "Checks payload + 4 KiB below 0x18000000 and FTL metadata end <= 0x3FFFFFFF",
+      "8-channel MLC exceeds DRAM (end 0x58A7883F) and asserts"
+    ],
+    "source_refs": [
+      "ftl_config.c:154-171",
+      "ftl_config.c:77-80",
+      "memory_map.h:57-109"
+    ]
+  },
+  {
+    "id": "Q13",
+    "category": "memory_map_data_structures",
+    "difficulty": "medium",
+    "question": "Describe the DRAM address map used by the firmware: regions, their purpose and their cacheability.",
+    "answer": "DRAM_START is 0x00100000. 0x00100000-0x001FFFFF: memory segments (code, data, heap, stacks), cached. 0x00200000-0x002FFFFF: NVMe management (ADMIN_CMD_DRAM_DATA_BUFFER = 0x00200000 is where Identify data is built), uncached. 0x00300000-0x0FFFFFFF: reserved0. From 0x10000000 (FTL_MANAGEMENT_START): data buffers at DATA_BUFFER_BASE_ADDR 0x10000000 (data, temp, spare, temp spare and reserved buffers) - uncached because the host DMA engine and the NAND controllers access them; 0x17000000: NAND request completion area (complete flags, status reports, ECC error info, set-feature payload) - uncached because the NSCs write it; 0x18000000 up to FTL_MANAGEMENT_END_ADDR: FTL metadata (buffer maps, slice maps, block/die maps, GC victim map, request pool, dependency and scheduler tables) - cached & buffered, CPU-only; then reserved1 up to DRAM_END 0x3FFFFFFF. The firmware performs no cache maintenance, so every hardware-shared structure must lie in an uncached window.",
+    "key_points": [
+      "Code/data/heap/stacks in 0x00100000-0x001FFFFF (cached)",
+      "NVMe admin data buffer at 0x00200000 (uncached)",
+      "Data buffers from 0x10000000 and NAND completion tables at 0x17000000 are uncached",
+      "FTL metadata from 0x18000000 is cached; DRAM ends at 0x3FFFFFFF",
+      "No cache maintenance: hardware-shared areas rely on the uncached mapping"
+    ],
+    "source_refs": [
+      "memory_map.h:57-109",
+      "main.c:89-101",
+      "nvme/nvme.h:57"
+    ]
+  },
+  {
+    "id": "Q14",
+    "category": "memory_map_data_structures",
+    "difficulty": "medium",
+    "question": "Give the layout of the uncached data-buffer region for an 8-channel build (base addresses, entry sizes) and the address formulas used for a request's data and spare buffers.",
+    "answer": "DATA_BUFFER_BASE_ADDR = 0x10000000: 1,024 entries x 16 KiB (16 MiB). TEMPORARY_DATA_BUFFER_BASE_ADDR = 0x11000000: 64 entries x 16 KiB (one per die). SPARE_DATA_BUFFER_BASE_ADDR = 0x11100000: 1,024 x 256 B. TEMPORARY_SPARE_DATA_BUFFER_BASE_ADDR = 0x11140000: 64 x 256 B. RESERVED_DATA_BUFFER_BASE_ADDR = 0x11144000 (a 2 MiB budget below 0x17000000 is checked). Address generation: NAND request with dataBufFormat ENTRY -> 0x10000000 + entry x 16384 (spare 0x11100000 + entry x 256); TEMP_ENTRY -> temp base + entry x 16384 (spare temp-spare base + entry x 256); ADDR -> dataBufInfo.addr (spare = addr + 16384); NONE -> the reserved buffer (spare reserved + 16384). NVMe DMA request -> 0x10000000 + entry x 16384 + nvmeBlockOffset x 4096. The reserved buffer is the scratch area for bad-block-table work: per-die 16,640-byte (16 KiB + 256) BBT buffers followed by per-die 18,048-byte raw-row read buffers (for 64 dies that is 2,220,032 bytes, slightly more than the 2 MiB the config check reserves; nothing else lives below 0x17000000 so it does not collide).",
+    "key_points": [
+      "Data entries at 0x10000000 (entry x 16 KiB); temp entries at 0x11000000",
+      "Spare at 0x11100000 (entry x 256 B), temp spare at 0x11140000, reserved buffer at 0x11144000",
+      "NVMe DMA address adds nvmeBlockOffset x 4096",
+      "ADDR format uses dataBufInfo.addr with spare at addr + 16384; NONE uses the reserved buffer",
+      "Reserved buffer is scratch for BBT read/scan/save"
+    ],
+    "source_refs": [
+      "memory_map.h:71-75",
+      "data_buffer.h:52-53",
+      "request_schedule.c:749-797",
+      "address_translation.c:466-483",
+      "ftl_config.c:165-166"
+    ]
+  },
+  {
+    "id": "Q15",
+    "category": "memory_map_data_structures",
+    "difficulty": "medium",
+    "question": "What structures live at COMPLETE_FLAG_TABLE_ADDR (0x17000000), how are they laid out, and who writes them?",
+    "answer": "Consecutively: COMPLETE_FLAG_TABLE completeFlag[USER_CHANNELS][USER_WAYS] (u32 each; bit0 set by the NSC when a read-page-transfer finished), STATUS_REPORT_TABLE statusReport[ch][way] (u32; filled by the NSC StatusCheck command: bit0 = report done, status = value >> 1), ERROR_INFO_TABLE errorInfo[ch][way][11] (ERROR_INFO_WORD_COUNT = 11 words of ECC error information written by the NSC on ECC reads), then TEMPORARY_PAY_LOAD_ADDR (scratch payload for SetFeatures). For 8 channels: 0x17000000, 0x17000100, 0x17000200 and 0x17000D00. The firmware hands the per-die addresses to the NSC through its completionAddress / errorCountAddress registers. The region is uncached; constraint TEMPORARY_PAY_LOAD_ADDR + 0x1000 <= 0x18000000.",
+    "key_points": [
+      "completeFlag[ch][way], statusReport[ch][way], errorInfo[ch][way][11], then the set-feature payload",
+      "8-channel addresses 0x17000000 / 0x17000100 / 0x17000200 / 0x17000D00",
+      "Written by the NAND controller via completionAddress / errorCountAddress",
+      "Region is uncached"
+    ],
+    "source_refs": [
+      "memory_map.h:76-80",
+      "request_schedule.h:80-90",
+      "request_schedule.c:661-672",
+      "request_schedule.c:800-862",
+      "nsc_driver.c:101-111",
+      "nsc_driver.c:139-145"
+    ]
+  },
+  {
+    "id": "Q16",
+    "category": "memory_map_data_structures",
+    "difficulty": "hard",
+    "question": "In what order are the FTL metadata structures placed from DATA_BUFFER_MAP_ADDR (0x18000000), what is each one's size formula, and where do they land for an 8-channel SLC build?",
+    "answer": "Packed back-to-back (no alignment) in cached DRAM: DATA_BUF_MAP (16 B x 16 x DIES) @0x18000000; DATA_BUF_HASH_TABLE (4 B x 16 x DIES) @0x18004000; TEMPORARY_DATA_BUF_MAP (4 B x DIES) @0x18005000; LOGICAL_SLICE_MAP (4 B x SLICES_PER_SSD = 256 MiB) @0x18005100; VIRTUAL_SLICE_MAP (4 B x SLICES_PER_SSD = 256 MiB) @0x28005100; VIRTUAL_BLOCK_MAP (12 B x DIES x 8192 = 6 MiB) @0x38005100; PHY_BLOCK_MAP (4 B x DIES x 8368) @0x38605100; BAD_BLOCK_TABLE_INFO_MAP (4 B x DIES) @0x38810100; VIRTUAL_DIE_MAP (12 B x DIES) @0x38810200; GC_VICTIM_MAP (4 B x DIES x (SLICES_PER_BLOCK+1)) @0x38810500; REQ_POOL (44 B x DIES x 128) @0x38818600; ROW_ADDR_DEPENDENCY_TABLE (4 B x CH x WAYS x 8192) @0x38870600; DIE_STATE_TABLE (4 B x CH x WAYS) @0x38A70600; RETRY_LIMIT_TABLE (4 B x CH x WAYS) @0x38A70700; WAY_PRIORITY_TABLE (8 B x CH) @0x38A70800; FTL_MANAGEMENT_END_ADDR = 0x38A7083F. The two slice maps (512 MiB together) dominate the footprint.",
+    "key_points": [
+      "Order: buffer map, hash table, temp buffer map, logical slice map, virtual slice map, virtual block map, phy block map, BBT info map, die map, GC victim map, request pool, row-address dependency table, die state, retry limit, way priority",
+      "Logical and virtual slice maps are 4 B x SLICES_PER_SSD each (256 MiB each for 8 channels)",
+      "Entry sizes: virtual block 12 B, request 44 B, data-buffer entry 16 B",
+      "8 channels: logical slice map at 0x18005100 and end address 0x38A7083F"
+    ],
+    "source_refs": [
+      "memory_map.h:81-104",
+      "address_translation.h:112-184",
+      "data_buffer.h:63-101",
+      "garbage_collection.h:52-59",
+      "request_allocation.h:53-61",
+      "request_format.h:153-172",
+      "request_transform.h:68-77",
+      "request_schedule.h:80-129"
+    ]
+  },
+  {
+    "id": "Q17",
+    "category": "memory_map_data_structures",
+    "difficulty": "medium",
+    "question": "Describe the per-block and per-die FTL metadata entries (VIRTUAL_BLOCK_ENTRY and VIRTUAL_DIE_ENTRY): fields, widths and the special role of the prev/next links.",
+    "answer": "VIRTUAL_BLOCK_ENTRY (12 bytes; array [USER_DIES][USER_BLOCKS_PER_DIE]): word 0 = bad:1, free:1, invalidSliceCnt:16, reserved0:10; word 1 = currentPage:16 (next page to allocate = number of pages already allocated), eraseCnt:16; word 2 = prevBlock:16, nextBlock:16. prevBlock/nextBlock are the links of whichever per-die doubly linked list the block currently belongs to - the free-block list or the GC victim bucket list for its invalidSliceCnt - the same fields serve both lists, so a block must never be in both. BLOCK_NONE = 0xFFFF terminates lists. VIRTUAL_DIE_ENTRY (12 bytes; [USER_DIES]): currentBlock:16 (the die's single open block), headFreeBlock:16, tailFreeBlock:16, freeBlockCnt:16, prevDie:8 and nextDie:8 (unused), reserved0:16.",
+    "key_points": [
+      "Block entry: bad, free, invalidSliceCnt(16), currentPage(16), eraseCnt(16), prevBlock(16), nextBlock(16); 12 bytes",
+      "prev/next links are shared by the free-block list and the GC victim bucket lists",
+      "Die entry: currentBlock, head/tail of the free list, freeBlockCnt",
+      "BLOCK_NONE = 0xFFFF terminates lists"
+    ],
+    "source_refs": [
+      "address_translation.h:59-67",
+      "address_translation.h:130-158"
+    ]
+  },
+  {
+    "id": "Q18",
+    "category": "memory_map_data_structures",
+    "difficulty": "medium",
+    "question": "What does an internal request (SSD_REQ_FORMAT) contain? List its fields with widths and the meaning of the union members.",
+    "answer": "44 bytes. Word 0: reqType:4 (SLICE 0, NAND 1, NVME_DMA 2), reqQueueType:4 (NONE 0, FREE 1, SLICE 2, BLOCKED_BY_BUF_DEP 3, BLOCKED_BY_ROW_ADDR_DEP 4, NVME_DMA 5, NAND 6), reqCode:8 (WRITE 0x00, READ 0x08, READ_TRANSFER 0x09, ERASE 0x0C, RESET 0x0D, SET_FEATURE 0x0E, RxDMA 0x10, TxDMA 0x20), nvmeCmdSlotTag:16. logicalSliceAddr (32). reqOpt: dataBufFormat:2 (ENTRY 0, TEMP_ENTRY 1, ADDR 2, NONE 3), nandAddr:2 (VSA 0, PHY_ORG 1), nandEcc:1, nandEccWarning:1, rowAddrDependencyCheck:1, blockSpace:1 (MAIN 0, TOTAL 1). dataBufInfo: union {addr | entry}. nvmeDmaInfo: startIndex:16 (4 KiB index inside the NVMe command), nvmeBlockOffset:16 (4 KiB offset inside the slice), numOfNvmeBlock:16, reqTail:8 (DMA FIFO tail after issue), overFlowCnt:32. nandInfo: union {virtualSliceAddr | physicalCh:4, physicalWay:4, physicalBlock:16} and union {programmedPageCnt (used by erase) | physicalPage:16}. prevReq:16 / nextReq:16 (queue links) and prevBlockingReq:16 / nextBlockingReq:16 (buffer-dependency chain).",
+    "key_points": [
+      "reqType, reqQueueType, reqCode and nvmeCmdSlotTag packed in the first word",
+      "reqOpt bits: dataBufFormat, nandAddr, nandEcc, nandEccWarning, rowAddrDependencyCheck, blockSpace",
+      "nvmeDmaInfo: startIndex, nvmeBlockOffset, numOfNvmeBlock, reqTail, overFlowCnt",
+      "nandInfo unions: VSA or physical ch/way/block; programmedPageCnt or physicalPage",
+      "Queue links prev/nextReq and buffer-dependency links prev/nextBlockingReq; 44 bytes total"
+    ],
+    "source_refs": [
+      "request_format.h:51-102",
+      "request_format.h:104-172"
+    ]
+  },
+  {
+    "id": "Q19",
+    "category": "memory_map_data_structures",
+    "difficulty": "easy",
+    "question": "What does the linker script define for memory placement and stack/heap sizes, and what implicit size constraint does the memory map impose on the firmware image?",
+    "answer": "MEMORY: ps7_ram_0 (OCM) at 0x00000000 length 0x30000, ps7_ddr_0 at 0x00100000 length 0x3FF00000, ps7_ram_1 at 0xFFFF0000 length 0xFE00. Every output section (.text including .vectors/.boot, .rodata, .data, .bss, .mmu_tbl aligned to 16 KiB, heap and stacks) goes into ps7_ddr_0 starting at 0x00100000; the OCM regions are unused. ENTRY(_vector_table). Sizes: _STACK_SIZE 0x2000, _HEAP_SIZE 0x2000, IRQ stack 1024, supervisor 2048, abort 1024, FIQ 1024, undefined 1024 bytes. The linker region itself allows almost 1 GiB, but memory_map.h reserves only 0x00100000-0x001FFFFF (1 MiB, cached) for these 'memory segments' because the NVMe admin buffer starts at 0x00200000, so the whole image including bss, heap and stacks must fit in 1 MiB (not enforced by the script).",
+    "key_points": [
+      "All sections in DDR starting at 0x00100000; OCM unused; entry point _vector_table",
+      "Stack 0x2000 and heap 0x2000; IRQ/ABT/FIQ/UND stacks 1 KiB, SVC 2 KiB",
+      ".mmu_tbl aligned to 16 KiB",
+      "Image must fit below 0x00200000 (1 MiB window) - implied by memory_map.h, not enforced by the linker"
+    ],
+    "source_refs": [
+      "lscript.ld:13-29",
+      "lscript.ld:33-53",
+      "lscript.ld:158-162",
+      "lscript.ld:245-281",
+      "memory_map.h:57-63"
+    ]
+  },
+  {
+    "id": "Q20",
+    "category": "address_translation",
+    "difficulty": "easy",
+    "question": "How are host LBAs translated to FTL addresses, and what are the two slice-level mapping tables and their initial values?",
+    "answer": "LSA (logical slice address) = LBA / NVME_BLOCKS_PER_SLICE = LBA / 4 (the 4 KiB unit inside the slice is LBA % 4). LOGICAL_SLICE_MAP: array[SLICES_PER_SSD] of 32-bit virtualSliceAddr - forward map LSA -> VSA. VIRTUAL_SLICE_MAP: array[SLICES_PER_SSD] of 32-bit logicalSliceAddr - reverse map VSA -> LSA, used by GC to find the owner of a physical slice. InitSliceMap sets every entry to 0xFFFFFFFF (VSA_NONE / LSA_NONE). Both maps exist only in DRAM and start empty at every boot.",
+    "key_points": [
+      "LSA = LBA / 4",
+      "Forward map logicalSlice[LSA].virtualSliceAddr (LSA -> VSA), 32-bit entries",
+      "Reverse map virtualSlice[VSA].logicalSliceAddr (VSA -> LSA), 32-bit entries",
+      "Initialized to 0xFFFFFFFF (VSA_NONE / LSA_NONE); DRAM only"
+    ],
+    "source_refs": [
+      "request_transform.c:85",
+      "address_translation.h:53-57",
+      "address_translation.h:111-128",
+      "address_translation.c:90-98"
+    ]
+  },
+  {
+    "id": "Q21",
+    "category": "address_translation",
+    "difficulty": "medium",
+    "question": "How is a virtual slice address (VSA) encoded, how is it decomposed into die/block/page and channel/way, and what does VSA 100,005 decode to on an 8-channel SLC build?",
+    "answer": "VSA = die + USER_DIES x (block x SLICES_PER_BLOCK + page) (Vorg2VsaTranslation). Decoding: die = VSA % USER_DIES; block = (VSA / USER_DIES) / SLICES_PER_BLOCK; page = (VSA / USER_DIES) % SLICES_PER_BLOCK. Die to physical position: channel = die % USER_CHANNELS, way = die / USER_CHANNELS (inverse Pcw2VdieTranslation: die = ch + way x USER_CHANNELS). Because the die is the least-significant component, consecutive VSAs stripe across dies. Example (64 dies, 128 slices per block): 100,005 % 64 = 37 -> die 37 = channel 5, way 4; 100,005 / 64 = 1,562 -> virtual block 12, virtual page 26.",
+    "key_points": [
+      "VSA = die + USER_DIES x (block x SLICES_PER_BLOCK + page)",
+      "die = VSA % DIES; block = (VSA / DIES) / SLICES_PER_BLOCK; page = (VSA / DIES) % SLICES_PER_BLOCK",
+      "channel = die % USER_CHANNELS; way = die / USER_CHANNELS",
+      "VSA 100,005 -> die 37 (channel 5, way 4), block 12, page 26"
+    ],
+    "source_refs": [
+      "address_translation.h:92-109"
+    ]
+  },
+  {
+    "id": "Q22",
+    "category": "address_translation",
+    "difficulty": "hard",
+    "question": "On an 8-channel SLC build with no bad-block remapping, compute the VSA, channel, way and NAND row address for die 37, virtual block 5000, virtual page 1, and state the general VSA-to-row-address algorithm.",
+    "answer": "VSA = 37 + 64 x (5000 x 128 + 1) = 40,960,101; channel = 37 % 8 = 5, way = 37 / 8 = 4. GenerateNandRowAddr: physical block in total block space = Vblock2PblockOfTbsTranslation(5000) = (5000 / 4096) x 4184 + 5000 % 4096 = 4184 + 904 = 5088; LUN = 5088 / 4184 = 1; block inside the LUN = phyBlockMap[die][5088].remappedPhyBlock % 4184 = 904 (identity remap); page: SLC -> Vpage2PlsbPageTranslation(1) = 1; rowAddr = LUN_1_BASE_ADDR (0x00200000) + 904 x PAGES_PER_MLC_BLOCK (256) + 1 = 0x00238801 (2,328,577). General rule: rowAddr = (LUN ? 0x200000 : 0) + (remappedPhyBlock % 4184) x 256 + physical page; the block multiplier is always 256 (MLC rows) even in SLC mode, and remapping never crosses LUNs.",
+    "key_points": [
+      "VSA = 40,960,101; channel 5, way 4",
+      "Virtual block 5000 -> physical block 5088 (LUN 1, block 904 inside the LUN)",
+      "SLC page translation keeps page 1 as physical page 1",
+      "Row address = 0x200000 + 904 x 256 + 1 = 0x238801",
+      "Row = LUN base (0 or 0x200000) + block x 256 + page, using remappedPhyBlock"
+    ],
+    "source_refs": [
+      "address_translation.h:93-109",
+      "request_schedule.c:702-747",
+      "request_schedule.h:55-56"
+    ]
+  },
+  {
+    "id": "Q23",
+    "category": "address_translation",
+    "difficulty": "medium",
+    "question": "In SLC mode, how are the 128 virtual pages of a block mapped to physical NAND pages, and when is this translation applied or skipped?",
+    "answer": "Vpage2PlsbPageTranslation(p) = 0 if p == 0, otherwise 2p - 1: virtual pages 0,1,2,...,127 -> physical pages 0,1,3,5,...,253 (the LSB pages of the 256-page MLC block). The inverse PlsbPage2VpageTranslation(p) = 0 if p == 0, otherwise (p + 1) / 2. GenerateNandRowAddr applies it only for VSA-addressed requests and only when BITS_PER_FLASH_CELL == SLC_MODE; PHY_ORG-addressed requests use nandInfo.physicalPage verbatim (e.g. the bad-block-mark reads of pages 0 and 255). The BBT routines compute their page as Vpage2Plsb(Plsb2Vpage(1)) = physical page 1. In MLC mode the virtual page is the physical page (0..255).",
+    "key_points": [
+      "Mapping: 0 -> 0, n -> 2n - 1 (physical pages 0,1,3,...,253)",
+      "Applied only to VSA-addressed requests in SLC mode",
+      "PHY_ORG requests use the physical page as given",
+      "MLC mode uses the virtual page directly"
+    ],
+    "source_refs": [
+      "address_translation.h:105",
+      "address_translation.h:109",
+      "request_schedule.c:706-737",
+      "address_translation.c:263",
+      "address_translation.c:285"
+    ]
+  },
+  {
+    "id": "Q24",
+    "category": "address_translation",
+    "difficulty": "medium",
+    "question": "When and how does the FTL assign a new physical location to a logical slice (AddrTransWrite / FindFreeVirtualSlice)?",
+    "answer": "Only when a dirty data-buffer entry is written back on eviction: EvictDataBufEntry calls AddrTransWrite(LSA of the evicted entry); a host write arriving in the buffer never touches the map. AddrTransWrite: assert LSA < SLICES_PER_SSD; InvalidateOldVsa(LSA); vsa = FindFreeVirtualSlice(); logicalSliceMap[LSA] = vsa; virtualSliceMap[vsa] = LSA; return vsa. FindFreeVirtualSlice: die = sliceAllocationTargetDie; cur = die.currentBlock; if cur.currentPage == USER_PAGES_PER_BLOCK, cur = GetFromFbList(die, GET_FREE_BLOCK_NORMAL); if that fails, GarbageCollection(die), then re-check the current block and, if it is still full, GetFromFbList(NORMAL) or assert 'There is no available block'; it asserts if currentPage > USER_PAGES_PER_BLOCK. Then VSA = Vorg2Vsa(die, cur, cur.currentPage); cur.currentPage++; sliceAllocationTargetDie = FindDieForFreeSliceAllocation(). Each die therefore has one open block filled strictly sequentially (log-structured append).",
+    "key_points": [
+      "Called only from the eviction write-back (EvictDataBufEntry), not at host write time",
+      "Order: InvalidateOldVsa, FindFreeVirtualSlice, then update forward and reverse maps",
+      "Allocates the next sequential page of the die's current block; full block -> new free block (NORMAL)",
+      "If no NORMAL free block is available: GarbageCollection(die) and retry",
+      "Target die is advanced after every allocation"
+    ],
+    "source_refs": [
+      "address_translation.c:641-700",
+      "request_transform.c:162-190"
+    ]
+  },
+  {
+    "id": "Q25",
+    "category": "address_translation",
+    "difficulty": "medium",
+    "question": "In which order are dies chosen for new (host) slice allocations, and do GC copies follow the same order?",
+    "answer": "FindDieForFreeSliceAllocation keeps static targetCh and targetWay (both start at 0). It returns die = targetCh + targetWay x USER_CHANNELS and then increments the channel; when the channel wraps from USER_CHANNELS - 1 to 0 it increments the way modulo USER_WAYS. Successive host allocations therefore use dies 0,1,2,...,USER_DIES-1,0,... - channel-first interleaving (ch0/way0, ch1/way0, ..., ch7/way0, ch0/way1, ...). InitAddressMap calls it once (first target = die 0); FindFreeVirtualSlice uses the current target and advances it after each allocation, independent of the LSA (there is no static LSA-to-die striping). GC copies do not use it: FindFreeVirtualSliceForGc allocates inside the victim's own die and does not advance the pointer.",
+    "key_points": [
+      "Static round-robin counters; die = ch + way x USER_CHANNELS",
+      "Channel increments first, then way: dies 0..USER_DIES-1 in order",
+      "Advanced after every host allocation, independent of the LSA",
+      "GC copies stay in the victim's die and do not advance the pointer"
+    ],
+    "source_refs": [
+      "address_translation.c:84",
+      "address_translation.c:661-700",
+      "address_translation.c:703-733",
+      "address_translation.c:736-753"
+    ]
+  },
+  {
+    "id": "Q26",
+    "category": "address_translation",
+    "difficulty": "medium",
+    "question": "What happens when the host reads an LBA whose slice has never been written (unmapped) and is not present in the data buffer?",
+    "answer": "ReqTransSliceToLowLevel misses in the buffer, allocates the LRU entry (writing it back first if it is dirty), retags it with the LSA and calls DataReadFromNand. AddrTransRead returns VSA_FAIL (0xFFFFFFFF) because logicalSliceMap[LSA] == VSA_NONE, so NO NAND read request is created. The slice request is still converted to a TxDMA and transfers the entry's current contents - stale data of whatever slice previously occupied that buffer entry (another LBA's data) or uninitialized DRAM - to the host, and the command completes with success status. There is no zero fill and no 'deallocated or unwritten logical block' error. (If the slice is still in the buffer from an earlier write, the buffered data is returned.) An LSA >= SLICES_PER_SSD would instead hit the assert in AddrTransRead.",
+    "key_points": [
+      "AddrTransRead returns VSA_FAIL for an unmapped LSA",
+      "No NAND read is issued",
+      "The TxDMA still transfers the buffer entry's stale contents (not zeros)",
+      "The command completes successfully; no error status"
+    ],
+    "source_refs": [
+      "address_translation.c:624-639",
+      "request_transform.c:192-219",
+      "request_transform.c:222-275"
+    ]
+  },
+  {
+    "id": "Q27",
+    "category": "address_translation",
+    "difficulty": "hard",
+    "question": "What exactly does InvalidateOldVsa do when a slice is rewritten, and how is slice validity determined later?",
+    "answer": "vsa = logicalSliceMap[LSA]; if vsa == VSA_NONE nothing happens. If virtualSliceMap[vsa] != LSA (reverse map does not point back) it returns without changes. Otherwise: die = vsa % USER_DIES, block = Vsa2VblockTranslation(vsa); SelectiveGetFromGcVictimList(die, block) unlinks the block from the GC bucket of its current invalidSliceCnt (for a block that is in no bucket, e.g. invalidSliceCnt 0, this merely resets bucket 0's head/tail, which is never used for victim selection; the buckets cover invalidSliceCnt 0..SLICES_PER_BLOCK); invalidSliceCnt++; logicalSliceMap[LSA] = VSA_NONE; PutToGcVictimList(die, block, new count) appends the block to the tail of the bucket for the new count. The reverse entry virtualSliceMap[vsa] is NOT cleared (only EraseBlock resets reverse entries to LSA_NONE). Validity is therefore defined by forward-map agreement: GC treats a page as valid iff virtualSliceMap[vsa] != LSA_NONE and logicalSliceMap[that LSA] == vsa.",
+    "key_points": [
+      "No-op if the LSA is unmapped or the reverse map does not point back to the LSA",
+      "Block is moved from bucket[old invalidSliceCnt] to the tail of bucket[old + 1]",
+      "Forward entry is set to VSA_NONE; the reverse entry is left intact until erase",
+      "A page is valid iff the forward entry of its reverse-map LSA equals its VSA"
+    ],
+    "source_refs": [
+      "address_translation.c:755-777",
+      "address_translation.c:780-810",
+      "garbage_collection.c:80-87",
+      "garbage_collection.c:134-150",
+      "garbage_collection.c:184-212"
+    ]
+  },
+  {
+    "id": "Q28",
+    "category": "garbage_collection",
+    "difficulty": "medium",
+    "question": "When is garbage collection triggered, at what scope, and how much does one invocation reclaim?",
+    "answer": "Only on demand in the allocation path: FindFreeVirtualSlice finds the target die's current block full and GetFromFbList(die, GET_FREE_BLOCK_NORMAL) returns BLOCK_FAIL because freeBlockCnt <= RESERVED_FREE_BLOCK_COUNT (1). It then calls GarbageCollection(die) for that die only, which reclaims exactly one victim block. There is no background/idle GC, no watermark-driven or cross-die GC, and reads never trigger GC. Because allocation happens only when a dirty buffer entry is evicted, GC runs synchronously inside ReqTransSliceToLowLevel while a host command is being processed (its copy and erase requests are only queued and execute asynchronously).",
+    "key_points": [
+      "Triggered when the current block is full and the free block count is <= 1 (NORMAL allocation fails)",
+      "Per die: GarbageCollection(dieNo) only for the allocating die",
+      "Exactly one victim block reclaimed per invocation",
+      "No background/idle GC; it runs inline during eviction write-back in host command processing"
+    ],
+    "source_refs": [
+      "address_translation.c:661-690",
+      "address_translation.c:832-842",
+      "address_translation.h:67-70",
+      "request_transform.c:162-190"
+    ]
+  },
+  {
+    "id": "Q29",
+    "category": "garbage_collection",
+    "difficulty": "medium",
+    "question": "How is the GC victim selected, and what data structure supports the selection?",
+    "answer": "Greedy: the block with the most invalid slices. GC_VICTIM_MAP holds, per die, SLICES_PER_BLOCK + 1 (129 in SLC) doubly linked bucket lists gcVictimList[die][invalidSliceCnt] (16-bit head/tail; the links live in the virtual block entries). A block is (re)inserted at the tail of the bucket for its new count every time one of its slices is invalidated. GetFromGcVictimList scans invalidSliceCnt from SLICES_PER_BLOCK down to 1 and pops the head of the first non-empty bucket, so among equal counts the block that reached that count first wins (FIFO). Bucket 0 is never examined; blocks without invalid slices are never victims. Age, erase count or cost-benefit are not considered. All buckets start empty (BLOCK_NONE).",
+    "key_points": [
+      "Greedy max-invalid-slices policy",
+      "Per-die array of SLICES_PER_BLOCK + 1 bucket lists indexed by invalidSliceCnt",
+      "Scan from SLICES_PER_BLOCK down to 1 and pop the head of the first non-empty bucket (FIFO tie-break)",
+      "No wear/age consideration; blocks with 0 invalid slices are never chosen"
+    ],
+    "source_refs": [
+      "garbage_collection.h:52-59",
+      "garbage_collection.c:54-68",
+      "garbage_collection.c:134-181",
+      "address_translation.c:770-774"
+    ]
+  },
+  {
+    "id": "Q30",
+    "category": "garbage_collection",
+    "difficulty": "hard",
+    "question": "Walk through GarbageCollection(die) step by step: validity check, copy mechanics (buffers, request options, ordering), map updates and the erase.",
+    "answer": "victim = GetFromGcVictimList(die). If victim.invalidSliceCnt != SLICES_PER_BLOCK, for pageNo 0..USER_PAGES_PER_BLOCK-1: vsa = Vorg2Vsa(die, victim, page); lsa = virtualSliceMap[vsa]; the page is valid iff lsa != LSA_NONE and logicalSliceMap[lsa] == vsa. For each valid slice: (1) a NAND READ request (logicalSliceAddr = lsa, dataBufFormat TEMP_ENTRY with entry = AllocateTempDataBuf(die), i.e. the die's single temp buffer, VSA addressing, ECC on, ECC warning off, row-address check on, MAIN space) chained on that temp buffer; (2) a NAND WRITE request from the same temp entry with the same options to vsa' = FindFreeVirtualSliceForGc(die, victim) (same die, next sequential page of the die's current block), chained after the read; logicalSliceMap[lsa] = vsa' and virtualSliceMap[vsa'] = lsa are updated immediately (no InvalidateOldVsa). Requests are only queued (SelectLowLevelReqQ); all copies of a die are serialized through its one temp buffer (read1 -> write1 -> read2 -> ...). Finally EraseBlock(die, victim): an ERASE request (VSA of page 0, row-address check, programmedPageCnt = victim.currentPage) and, immediately in DRAM, free = 1, eraseCnt++, invalidSliceCnt = 0, currentPage = 0, PutToFbList (tail) and all reverse-map entries of the block set to LSA_NONE. The erase itself is held back by the row-address dependency until all programs of the victim have been dispatched and no reads of it are pending.",
+    "key_points": [
+      "Valid page = reverse-map LSA whose forward entry equals this VSA",
+      "Copy = NAND read into the die's temp buffer + NAND write from it, chained; ECC on, warning off, row-address check",
+      "Destination is in the same die via FindFreeVirtualSliceForGc; maps updated at issue time",
+      "EraseBlock queues the erase with programmedPageCnt and immediately frees the block (counters reset, free-list tail, reverse map cleared)",
+      "Erase dispatch is gated by the row-address dependency"
+    ],
+    "source_refs": [
+      "garbage_collection.c:71-131",
+      "data_buffer.c:188-204",
+      "address_translation.c:703-733",
+      "address_translation.c:780-810",
+      "request_transform.c:334-353"
+    ]
+  },
+  {
+    "id": "Q31",
+    "category": "garbage_collection",
+    "difficulty": "medium",
+    "question": "What happens when the GC victim contains no valid data at all, and what happens if GC is triggered but no block of the die has any invalid slice?",
+    "answer": "If victim.invalidSliceCnt == SLICES_PER_BLOCK, the whole copy loop is skipped and EraseBlock is called directly - the block goes straight back to the free list (its erase is queued). If every bucket 1..SLICES_PER_BLOCK of the die is empty, GetFromGcVictimList reaches assert(\"There are no free blocks. Abort terminate this ssd.\") and the firmware stops; if asserts were compiled out it would return BLOCK_FAIL (0xFFFF), which GarbageCollection does not check (it would index the block map out of range). Blocks with zero invalid slices are never selected.",
+    "key_points": [
+      "All-invalid victim: no copies, direct EraseBlock",
+      "No candidate: assert 'There are no free blocks' (fatal)",
+      "The BLOCK_FAIL return value is not checked by GarbageCollection"
+    ],
+    "source_refs": [
+      "garbage_collection.c:75-80",
+      "garbage_collection.c:130",
+      "garbage_collection.c:152-181"
+    ]
+  },
+  {
+    "id": "Q32",
+    "category": "garbage_collection",
+    "difficulty": "hard",
+    "question": "What happens if the GC victim is the die's current (open) block?",
+    "answer": "This is possible because a block enters a victim bucket on its first invalidation even while it is the current block, and GC runs exactly when the current block is full. Case 1 - the victim still has valid slices: on the first copy FindFreeVirtualSliceForGc sees victimBlockNo == die.currentBlock and replaces currentBlock with GetFromFbList(die, GET_FREE_BLOCK_GC) (assert if none), so the copies go to a fresh block. Case 2 - the victim is fully invalid: the copy loop (and therefore FindFreeVirtualSliceForGc) is skipped; EraseBlock resets it (currentPage = 0, free = 1) and appends it to the free list, but die.currentBlock still points to it, so FindFreeVirtualSlice continues allocating pages 0,1,... of that same block. The block is then simultaneously the open block and a member of the free list (whose links are shared with the GC victim lists) - a latent bug that can corrupt the lists or hand the block out a second time; a re-implementation should switch the current block in this case.",
+    "key_points": [
+      "The current block can be chosen as victim (it joins buckets on its first invalidation)",
+      "With valid data: FindFreeVirtualSliceForGc switches currentBlock to a new block from the GC reserve",
+      "Fully invalid: the block is erased and put on the free list while remaining currentBlock",
+      "Latent bug: block is simultaneously open and free (shared link fields)"
+    ],
+    "source_refs": [
+      "garbage_collection.c:71-131",
+      "address_translation.c:661-700",
+      "address_translation.c:703-733",
+      "address_translation.c:780-830"
+    ]
+  },
+  {
+    "id": "Q33",
+    "category": "garbage_collection",
+    "difficulty": "medium",
+    "question": "How does the free-block reserve protect GC, and how does FindFreeVirtualSliceForGc allocate copy destinations?",
+    "answer": "RESERVED_FREE_BLOCK_COUNT = 1. GetFromFbList(GET_FREE_BLOCK_NORMAL) fails when freeBlockCnt <= 1, so host-driven allocation always leaves at least one free block per die; GetFromFbList(GET_FREE_BLOCK_GC) fails only when the list is empty, so GC may consume that reserve as its destination. FindFreeVirtualSliceForGc(die, victim): if victim == currentBlock, take a new current block (GC option, assert if none); if the current block is full (currentPage == USER_PAGES_PER_BLOCK) take a new block (GC option, assert 'There is no available block' on failure); assert if currentPage > USER_PAGES_PER_BLOCK; return Vorg2Vsa(die, currentBlock, currentPage++) - sliceAllocationTargetDie is not touched. After GarbageCollection returns, FindFreeVirtualSlice re-reads the current block; if it is still full (e.g. nothing was copied) it takes a NORMAL free block (possible because the erased victim was appended, raising the count to 2), otherwise it asserts.",
+    "key_points": [
+      "Reserve of 1 free block per die",
+      "NORMAL allocation fails at freeBlockCnt <= 1; GC option fails only if the list is empty",
+      "GC destination: same die, current block, or a new GC-option block when full or when the victim is the current block",
+      "After GC the allocator re-checks the current block and may take a NORMAL free block"
+    ],
+    "source_refs": [
+      "address_translation.h:67-70",
+      "address_translation.c:670-689",
+      "address_translation.c:703-733",
+      "address_translation.c:832-869"
+    ]
+  },
+  {
+    "id": "Q34",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "medium",
+    "question": "Where and in what format is the bad block table (BBT) stored on NAND, and how does the firmware decide at boot whether a valid table exists?",
+    "answer": "One table per die in physical block bbtInfo[die].phyBlock, which InitAddressMap sets to 0 for every die (it never changes). It is written with ECC on (PHY_ORG addressing, total block space) starting at physical page 1 (START_PAGE_NO_OF_BAD_BLOCK_TABLE_BLOCK = 1, an LSB page) so that page 0 keeps the block's factory bad-block mark. Content: one byte per physical block of the die's total block space - DATA_SIZE_OF_BAD_BLOCK_TABLE_PER_DIE = 8,368 bytes, which fits in one page (USED_PAGES_FOR_BAD_BLOCK_TABLE_PER_DIE = 1) - value 0 = normal, 1 = bad. At boot ReadBadBlockTable reads that page from every die; the table is considered present iff its first byte (block 0's entry) is 0 or 1, and then phyBlockMap[die][b].bad is loaded from it; otherwise the die is scanned and a new table is saved. After loading, the BBT block itself is marked bad in phyBlockMap (so it is never used for data and gets remapped); when a table is rewritten, the BBT block's own entry is written as 0 (normal).",
+    "key_points": [
+      "Physical block 0 of each die, starting at page 1 (page 0 preserved for the bad-block mark)",
+      "One byte per physical block (8,368 entries): 0 = normal, 1 = bad; one page, ECC on",
+      "Valid iff the first byte is 0 or 1; otherwise the die is rescanned and a table saved",
+      "BBT block is masked as bad in RAM; its own entry is saved as normal"
+    ],
+    "source_refs": [
+      "address_translation.h:75-90",
+      "address_translation.c:72-81",
+      "address_translation.c:256-296",
+      "address_translation.c:466-528",
+      "address_translation.c:610-612",
+      "address_translation.c:898-906"
+    ]
+  },
+  {
+    "id": "Q35",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "medium",
+    "question": "How are factory bad blocks detected when a die has no valid BBT?",
+    "answer": "FindBadBlock scans every physical block 0..8,367 (main and extended) of each such die: page 0 (BAD_BLOCK_MARK_PAGE0) is read raw (ECC off, PHY_ORG, total block space) into a per-die 18,048-byte buffer; the block is good only if byte 0 (first data byte, BAD_BLOCK_MARK_BYTE0) and byte 16,384 (first spare byte, BAD_BLOCK_MARK_BYTE1) are both 0xFF. If page 0 is clean, page 255 (BAD_BLOCK_MARK_PAGE1 = last row of the MLC block) is read and checked the same way. Any non-0xFF mark -> bad. If a scan read itself fails after retries, ExecuteNandReq writes PSEUDO_BAD_BLOCK_MARK (0) to the first byte of the buffer, so the block is classified as bad. Results are written to the per-die BBT buffer (1 byte per block) and to phyBlockMap[die][b].bad; then SaveBadBlockTable erases physical block 0 and programs the table at page 1 for those dies.",
+    "key_points": [
+      "All 8,368 physical blocks are scanned with raw reads (ECC off)",
+      "Page 0 is checked and, if clean, page 255",
+      "Bytes 0 and 16384 must both be 0xFF for a good block",
+      "A failed scan read writes pseudo mark 0, so the block is treated as bad",
+      "The new table is saved to block 0, page 1"
+    ],
+    "source_refs": [
+      "ftl_config.h:139-142",
+      "address_translation.c:298-395",
+      "address_translation.c:398-463",
+      "request_schedule.h:58",
+      "request_schedule.c:939-945"
+    ]
+  },
+  {
+    "id": "Q36",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "hard",
+    "question": "How are bad blocks remapped to spare blocks, what happens when spares run out, and how does that affect capacity?",
+    "answer": "RemapBadBlock works per die with two reserve pointers: LUN0 starts at USER_BLOCKS_PER_LUN (4096), LUN1 at TOTAL_BLOCKS_PER_LUN + USER_BLOCKS_PER_LUN (8280). For user block index b = 0..4095 (outer loop) and each die (inner loop): if physical block b (LUN0) is bad it is remapped to the next non-bad reserved block in [4096, 4184); if physical block b + 4184 (LUN1) is bad it is remapped to the next non-bad block in [8280, 8368). The mapping is stored in phyBlockMap[die][b].remappedPhyBlock (identity by default) and the pointer advances (first fit, ascending, never across LUNs or dies; 88 spares per LUN). This includes block 0, which was marked bad to protect the BBT. If the LUN's spares are exhausted the block stays bad: 'No reserved block ...' is printed and badBlockCount[die]++. InitBlockMap then marks a virtual block bad iff its (remapped) physical block is bad and leaves it out of the free list. mbPerbadBlockSpace = max over dies of badBlockCount x USER_DIES x MB_PER_BLOCK is deducted from the exported capacity.",
+    "key_points": [
+      "Spare ranges: LUN0 blocks 4096-4183, LUN1 blocks 8280-8367 (88 per LUN)",
+      "A bad user block is remapped to the next good spare in the same LUN (ascending first fit)",
+      "BBT block 0 is remapped like any bad block",
+      "Unremappable -> virtual block marked bad, excluded from the free list, counted",
+      "Capacity deduction = worst die's count x USER_DIES x MB_PER_BLOCK"
+    ],
+    "source_refs": [
+      "address_translation.c:100-202",
+      "address_translation.c:216-242",
+      "address_translation.c:610-616",
+      "ftl_config.c:70"
+    ]
+  },
+  {
+    "id": "Q37",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "hard",
+    "question": "What happens when a NAND operation on a user block fails permanently at run time (program/erase failure, or a read that still fails after all retries)?",
+    "answer": "ExecuteNandReq prints e.g. 'Write FAIL on ch x way y rowAddr ...', derives the physical block from the row address as ((rowAddr % 0x200000) / 256) + (rowAddr / 0x200000) x 4184 and calls UpdatePhyBlockMapForGrownBadBlock(die, block): phyBlockMap[die][block].bad = 1 and bbtInfo[die].grownBadUpdate = BOOKED. The request is then completed as if it succeeded (retry counter reset, GetFromNandReqQ frees it and releases its dependents): no error reaches the host, failed program data is not rewritten elsewhere and the map still points to it. The virtual block is not retired (virtualBlockMap.bad is unchanged), so it keeps being allocated and garbage-collected until reboot. The updated BBT is written to flash only at NVMe normal shutdown (UpdateBadBlockTableForGrownBadBlock for BOOKED dies); at the next boot the block is treated as bad and remapped to a spare (or excluded). The same marking is done for ECC 'uncorrectable soon' warnings.",
+    "key_points": [
+      "phyBlockMap entry marked bad and a BBT update booked for the die",
+      "Request completes normally; no host error and no data relocation",
+      "Block stays in service (virtual block map not updated) until reboot",
+      "BBT is persisted only at normal shutdown and takes effect at the next boot via remapping"
+    ],
+    "source_refs": [
+      "request_schedule.c:913-967",
+      "address_translation.c:872-916",
+      "nvme/nvme_main.c:141-142"
+    ]
+  },
+  {
+    "id": "Q38",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "easy",
+    "question": "How is the per-die free block list organized and what are the semantics of GetFromFbList / PutToFbList?",
+    "answer": "It is a doubly linked FIFO of virtual blocks per die: VIRTUAL_DIE_ENTRY holds headFreeBlock, tailFreeBlock and freeBlockCnt; the links are prevBlock/nextBlock of the block entries. PutToFbList appends at the tail and increments freeBlockCnt. GetFromFbList removes the head, sets free = 0, clears its links and decrements freeBlockCnt; with GET_FREE_BLOCK_NORMAL it returns BLOCK_FAIL if freeBlockCnt <= RESERVED_FREE_BLOCK_COUNT (1), with GET_FREE_BLOCK_GC only if the list is empty; any other option asserts. At init InitBlockMap appends every non-bad virtual block 0..8191 of each die in ascending order (bad ones are left unlinked), and InitCurrentBlockOfDieMap takes one block per die (NORMAL option) as currentBlock (assert if none). EraseBlock appends a block at the tail as soon as its erase is queued.",
+    "key_points": [
+      "FIFO: append at tail, allocate from head",
+      "NORMAL fails at <= 1 free block; GC option fails only when the list is empty",
+      "Init: all good blocks in ascending order; one is taken as the current block per die",
+      "Erased blocks are appended immediately when the erase is queued"
+    ],
+    "source_refs": [
+      "address_translation.c:204-254",
+      "address_translation.c:780-869"
+    ]
+  },
+  {
+    "id": "Q39",
+    "category": "bad_block_and_block_allocation",
+    "difficulty": "easy",
+    "question": "Does the firmware implement wear leveling? What happens to erase counts?",
+    "answer": "No wear leveling is implemented. VIRTUAL_BLOCK_ENTRY.eraseCnt (16 bits) is incremented in EraseBlock but never read for any decision; it is reset to 0 for every block at each boot (InitBlockMap) and never persisted. Block reuse is simply FIFO through the free list (erased blocks go to the tail), which gives only implicit rotation; GC victim choice uses only invalid counts; cold/static data is never migrated, and there is no read-disturb or retention refresh.",
+    "key_points": [
+      "No static or dynamic wear-leveling algorithm",
+      "eraseCnt is incremented but never used",
+      "eraseCnt is reset at every boot and not persisted",
+      "Only implicit FIFO rotation through the free list"
+    ],
+    "source_refs": [
+      "address_translation.h:136",
+      "address_translation.c:231",
+      "address_translation.c:799",
+      "address_translation.c:812-869",
+      "garbage_collection.c:152-181"
+    ]
+  },
+  {
+    "id": "Q40",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "How is the request pool organized (size, queues, counters), and what happens when a new request is needed but the free queue is empty?",
+    "answer": "One global pool REQ_POOL of AVAILABLE_OUNTSTANDING_REQ_COUNT = USER_DIES x 128 entries (8,192 for 64 dies) shared by all request types and addressed by a 16-bit reqSlotTag (REQ_SLOT_TAG_NONE = 0xFFFF). Queues (doubly linked through prevReq/nextReq; reqQueueType records membership): free queue (FIFO, initially 0..N-1), slice queue, one blocked-by-buffer-dependency queue, blocked-by-row-address-dependency queues [ch][way], one NVMe DMA queue, and NAND request queues [ch][way]. Counters: notCompletedNandReqCnt (requests in NAND queues) and blockedReqCnt (requests in either blocked queue). GetFromFreeReqQ takes the head; if the free queue is empty it calls SyncAvailFreeReq(), which loops CheckDoneNvmeDmaReq() + SchedulingNandReq() until some request completes and is freed - request creation (also inside eviction and GC) back-pressures by running the scheduler synchronously.",
+    "key_points": [
+      "Single pool of USER_DIES x 128 requests for all types",
+      "Queues: free, slice, buffer-dependency blocked, row-address blocked [ch][way], NVMe DMA, NAND [ch][way]",
+      "notCompletedNandReqCnt and blockedReqCnt counters",
+      "Empty free queue -> SyncAvailFreeReq runs the scheduler until a request is freed"
+    ],
+    "source_refs": [
+      "request_allocation.h:53-61",
+      "request_format.h:55-61",
+      "request_allocation.c:61-160",
+      "request_allocation.c:379-426",
+      "request_schedule.c:118-125"
+    ]
+  },
+  {
+    "id": "Q41",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "A Write arrives with SLBA = 6 and NLB field = 6 (0-based). Show the slice requests ReqTransNvmeToSlice creates (LSA, nvmeBlockOffset, numOfNvmeBlock, startIndex) and state the general splitting rule.",
+    "answer": "requestedNvmeBlock = NLB + 1 = 7; first LSA = 6 / 4 = 1; loop = ((6 % 4) + 7) / 4 = 2. First: LSA 1, nvmeBlockOffset 2, numOfNvmeBlock 4 - 2 = 2, startIndex 0. Middle (while transCounter < loop): LSA 2, offset 0, 4 blocks, startIndex 2. Last: (6 + 7) % 4 = 1 != 0 -> LSA 3, offset 0, 1 block, startIndex 6. All are reqType SLICE, reqCode WRITE, carrying the command's slot tag, appended to the slice queue in LBA order. Rule: the first slice starts at offset SLBA % 4 and holds 4 - offset blocks, or all NLB + 1 blocks when loop == 0 (the command fits inside one slice and nothing else is created); full 4-block slices follow; a final partial slice is created only if (SLBA + NLB + 1) % 4 != 0. startIndex is the running 4 KiB index within the command (used as the DMA's cmd4KBOffset).",
+    "key_points": [
+      "Total 7 blocks split into three slice requests",
+      "LSA 1: offset 2, 2 blocks, startIndex 0",
+      "LSA 2: offset 0, 4 blocks, startIndex 2",
+      "LSA 3: offset 0, 1 block, startIndex 6",
+      "Tail slice only if (SLBA + NLB + 1) % 4 != 0; single slice when loop == 0"
+    ],
+    "source_refs": [
+      "request_transform.c:78-158"
+    ]
+  },
+  {
+    "id": "Q42",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "What happens when a write does not cover a whole 16 KiB slice (e.g. a single 4 KiB write)?",
+    "answer": "In ReqTransSliceToLowLevel, on a buffer MISS (after allocating/evicting an entry and retagging it), a WRITE whose numOfNvmeBlock != NVME_BLOCKS_PER_SLICE (4) calls DataReadFromNand: if the LSA is mapped, a NAND READ of the old slice into the entry is issued (read-modify-write); the RxDMA is chained after that read via the buffer dependency, so it then overwrites only the 4 KiB units at nvmeBlockOffset x 4096. If the LSA was never written (unmapped) no read is issued and the rest of the 16 KiB entry keeps stale buffer contents, which will later be programmed as part of the slice. On a buffer HIT no NAND read is issued at all (the entry is assumed to hold the full slice). The entry is marked dirty; the NAND program happens only at eviction. Full-slice writes never trigger a read.",
+    "key_points": [
+      "Read-modify-write happens only on a buffer miss with a partial slice",
+      "Old slice is read from NAND before the RxDMA (chained by buffer dependency)",
+      "Unmapped LSA: no read; the remaining sectors keep stale buffer data",
+      "Buffer hit: no read",
+      "Program deferred until eviction"
+    ],
+    "source_refs": [
+      "request_transform.c:192-219",
+      "request_transform.c:240-264",
+      "request_schedule.c:762-765"
+    ]
+  },
+  {
+    "id": "Q43",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "List, in order, what ReqTransSliceToLowLevel does for each slice request.",
+    "answer": "While the slice queue is non-empty, pop the head and: 1) entry = CheckDataBufHit(req) (hash lookup; on a hit the entry is moved to the LRU head). 2) On a miss: entry = AllocateDataBuf() (LRU tail, moved to head, removed from its hash chain); EvictDataBufEntry: if the entry is dirty, AddrTransWrite(old LSA) and a NAND WRITE request chained on the entry, then the entry is marked clean; set entry.logicalSliceAddr = new LSA; PutToDataBufHashList; if READ -> DataReadFromNand; if WRITE and partial -> DataReadFromNand. 3) If WRITE: entry.dirty = DIRTY and reqCode = RxDMA; if READ: reqCode = TxDMA (other codes assert). 4) reqType = NVME_DMA, dataBufFormat = ENTRY, UpdateDataBufEntryInfoBlockingReq(entry, req) (append to the entry's chain), SelectLowLevelReqQ(req). Per entry the resulting chain order is: earlier requests -> eviction write -> NAND read -> DMA.",
+    "key_points": [
+      "Buffer hit check first; a hit reuses the entry (moved to MRU)",
+      "Miss: allocate LRU entry, evict (write back if dirty), retag with the LSA, insert into hash, NAND read for reads/partial writes",
+      "Write marks the entry dirty and becomes RxDMA; read becomes TxDMA",
+      "DMA request is appended to the entry's blocking chain and dispatched via SelectLowLevelReqQ",
+      "The slice queue is fully drained on each call"
+    ],
+    "source_refs": [
+      "request_transform.c:162-276",
+      "data_buffer.c:88-185"
+    ]
+  },
+  {
+    "id": "Q44",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "hard",
+    "question": "How does the buffer-dependency mechanism order requests that use the same data-buffer entry, and how are blocked requests released?",
+    "answer": "Every data-buffer entry (and every GC temp entry) has a blockingReqTail. When a request using it is created, UpdateDataBufEntryInfoBlockingReq / UpdateTempDataBufEntryInfoBlockingReq sets req.prevBlockingReq = old tail, oldTail.nextBlockingReq = req, tail = req. CheckBufDep passes only when prevBlockingReq == NONE, so requests on one entry execute strictly one at a time in creation order. A blocked request waits in the blocked-by-buffer-dependency queue (NAND requests with row-address checking first pre-register in the row table). When a request completes - NAND via GetFromNandReqQ, DMA via SelectiveGetFromNvmeDmaReqQ - it is returned to the free queue and ReleaseBlockedByBufDepReq runs: successor.prevBlockingReq = NONE, own nextBlockingReq = NONE, and if the entry's blockingReqTail is this request it becomes NONE; if the successor is waiting in the buffer-dependency queue it is removed and dispatched: DMA -> IssueNvmeDmaReq + NVMe DMA queue; NAND -> CheckRowAddrDep(RELEASE) -> NAND queue or row-address-blocked queue (directly to the NAND queue if it has no row check). Requests using DATA_BUF_ADDR or NONE never join a chain.",
+    "key_points": [
+      "Per-entry FIFO chain via blockingReqTail and prev/nextBlockingReq",
+      "A request is runnable only when prevBlockingReq == NONE",
+      "Blocked requests wait in the blocked-by-buffer-dependency queue",
+      "On completion the successor is unblocked and dispatched (DMA issued, NAND rechecked with RELEASE)",
+      "ADDR/NONE buffer formats are not chained"
+    ],
+    "source_refs": [
+      "data_buffer.c:176-204",
+      "request_transform.c:278-284",
+      "request_transform.c:406-475",
+      "request_transform.c:478-538",
+      "request_allocation.c:344-377",
+      "request_allocation.c:401-426"
+    ]
+  },
+  {
+    "id": "Q45",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "hard",
+    "question": "Explain the row-address dependency rules for NAND reads, programs and erases (table fields and pass conditions).",
+    "answer": "rowAddrDependencyTable[ch][way][virtual block] holds permittedProgPage:12, blockedReadReqCnt:16 and blockedEraseReqFlag:1 (all 0 at init). Only VSA-addressed NAND requests with rowAddrDependencyCheck = CHECK participate (host reads, eviction writes, GC reads/writes, GC erases); CheckRowAddrDep asserts on non-VSA requests. WRITE to page p passes iff p == permittedProgPage, then permittedProgPage++ - programs of a block enter the die's NAND queue strictly in page order, and the counter advances at dispatch, not at completion. READ of page p passes iff p < permittedProgPage (the program of that page has been dispatched; the per-die FIFO NAND queue then guarantees read-after-program); otherwise blockedReadReqCnt++ (SELECT), and blockedReadReqCnt-- when the read later passes on RELEASE. ERASE passes iff permittedProgPage == programmedPageCnt (number of pages allocated in the block when EraseBlock was called) AND blockedReadReqCnt == 0; on pass permittedProgPage = 0 and blockedEraseReqFlag = 0; a failing SELECT sets blockedEraseReqFlag = 1. Failing requests wait in the die's blocked-by-row-address queue.",
+    "key_points": [
+      "Per (ch, way, block): permittedProgPage, blockedReadReqCnt, blockedEraseReqFlag",
+      "Write passes only if page == permittedProgPage (in-order programming), then increments it",
+      "Read passes only if page < permittedProgPage; blocked reads are counted",
+      "Erase passes only if all allocated pages were dispatched and no reads are blocked; resets permittedProgPage to 0",
+      "Only VSA requests with the CHECK option participate"
+    ],
+    "source_refs": [
+      "request_transform.h:68-77",
+      "request_transform.c:59-76",
+      "request_transform.c:287-358"
+    ]
+  },
+  {
+    "id": "Q46",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "hard",
+    "question": "What happens when a NAND read targets a block that has an erase waiting (blockedEraseReqFlag set), and why? How are buffer-blocked NAND requests reflected in the row table?",
+    "answer": "Before registering itself as a blocked read, the read calls SyncReleaseEraseReq(ch, way, block), which loops the scheduler (CheckDoneNvmeDmaReq + SchedulingNandReq) until the erase has been dispatched (flag cleared). This is done on direct selection (CheckRowAddrDep with SELECT) and for reads that are themselves buffer-blocked (UpdateRowAddrDepTableForBufBlockedReq). In the latter case, if the read's buffer predecessor finished during the sync (the read was in no queue, so the release could not dispatch it), the read is dispatched directly - to the NAND queue if page < permittedProgPage, else blockedReadReqCnt++ and the row-address-blocked queue - and SYNC is returned so it does not enter the buffer queue. Reason: an erase may pass only when blockedReadReqCnt == 0, while a read of the re-allocated (erased) block waits for its new program, which itself waits for the erase to reset permittedProgPage; counting the read first would deadlock. In general, buffer-blocked reads pre-increment blockedReadReqCnt and buffer-blocked erases pre-set blockedEraseReqFlag (so other requests see them); writes are not pre-registered.",
+    "key_points": [
+      "The read first forces the pending erase out via SyncReleaseEraseReq",
+      "Avoids deadlock: erase needs blockedReadReqCnt == 0, the read needs a program that needs the erase",
+      "Buffer-blocked reads pre-increment blockedReadReqCnt; buffer-blocked erases pre-set the erase flag",
+      "If the buffer dependency resolved during the sync, the read is dispatched directly (SYNC report)"
+    ],
+    "source_refs": [
+      "request_transform.c:302-313",
+      "request_transform.c:361-402",
+      "request_transform.c:454-472",
+      "request_schedule.c:127-134"
+    ]
+  },
+  {
+    "id": "Q47",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "When are blocked requests re-evaluated: (a) buffer-dependency-blocked ones, (b) row-address-dependency-blocked ones?",
+    "answer": "(a) Exactly when the predecessor on the same buffer completes (ReleaseBlockedByBufDepReq, called from GetFromNandReqQ or SelectiveGetFromNvmeDmaReqQ); only the immediate successor is released. (b) Only in ReleaseBlockedByRowAddrDepReq(ch, way), which SchedulingNandReqPerCh calls for a way whose NAND request queue is EMPTY - while scanning the idle list, and right after completing a request in the status-report phase if the queue became empty. It walks that die's row-blocked queue once from head to tail, re-checking each request with CheckRowAddrDep(RELEASE); passing ones are moved to the NAND queue in order (a passing write increments permittedProgPage, which may let later entries pass in the same walk). Hence row-blocked requests wait until the die has drained its NAND queue.",
+    "key_points": [
+      "Buffer-blocked: released when the predecessor on the same buffer completes",
+      "Row-blocked: re-checked only when the die's NAND queue is empty",
+      "Called from the idle-list scan and after a completion in the status-report phase",
+      "Single head-to-tail pass with the RELEASE option; passing requests appended in order"
+    ],
+    "source_refs": [
+      "request_transform.c:478-572",
+      "request_schedule.c:149-172",
+      "request_schedule.c:185-200"
+    ]
+  },
+  {
+    "id": "Q48",
+    "category": "request_lifecycle_dependencies",
+    "difficulty": "medium",
+    "question": "What happens when the host writes the same slice again while its previous data is still dirty in the data buffer?",
+    "answer": "CheckDataBufHit finds the entry (bucket LSA % entry count) and moves it to the MRU head. There is no eviction, no NAND read (even for a partial write) and no AddrTransWrite - the L2P map, invalid counters and GC buckets are untouched. The slice request becomes an RxDMA chained behind any outstanding request on that entry (so it cannot overwrite data still being read or DMA'd) and writes the new data into the same DRAM location; the entry stays dirty. The completion is posted after the DMA. Only one NAND program eventually happens, when the entry is evicted (write coalescing).",
+    "key_points": [
+      "Buffer hit; entry moved to MRU",
+      "No NAND I/O and no mapping/GC metadata change",
+      "RxDMA chained behind outstanding operations on the entry",
+      "A single program happens at eviction (coalescing)"
+    ],
+    "source_refs": [
+      "data_buffer.c:88-142",
+      "data_buffer.c:176-185",
+      "request_transform.c:222-275",
+      "request_transform.c:406-416"
+    ]
+  },
+  {
+    "id": "Q49",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "medium",
+    "question": "How does the per-channel NAND scheduler organize dies and in which priority does it issue operations?",
+    "answer": "Per channel, every way (die) belongs to exactly one of seven doubly linked lists kept in WAY_PRIORITY_TABLE (4-bit head/tail; links prevWay/nextWay in DIE_STATE_ENTRY; WAY_NONE = 0xF): idle, statusReport, readTrigger, write, readTransfer, erase, statusCheck. Initially all ways are idle (0..7). SchedulingNandReqPerCh(ch): (1) idle ways whose NAND queue is non-empty (after trying ReleaseBlockedByRowAddrDepReq if it was empty) are moved to a list chosen by the head request's code: READ -> readTrigger, READ_TRANSFER -> readTransfer, WRITE -> write, ERASE -> erase, RESET/SET_FEATURE -> write. (2) Ways in statusReport whose ready/busy bit is ready are checked/completed. (3) If not all ways are waiting and the channel controller is not busy, operations are issued in fixed priority statusCheck, readTrigger, erase, write, readTransfer, returning as soon as V2FIsControllerBusy reports busy. Each die executes only the head of its NAND queue, one operation at a time (strict per-die FIFO). SchedulingNandReq calls this for channels 0..USER_CHANNELS-1.",
+    "key_points": [
+      "Seven per-channel way lists: idle, statusReport, readTrigger, write, readTransfer, erase, statusCheck",
+      "List chosen by the head request's code (RESET/SET_FEATURE treated as write)",
+      "Issue priority: status check > read trigger > erase > write > read transfer",
+      "Issuing stops when the channel controller becomes busy",
+      "Only the head of each die's NAND queue executes (per-die FIFO)"
+    ],
+    "source_refs": [
+      "request_schedule.h:96-129",
+      "request_schedule.c:62-105",
+      "request_schedule.c:136-338"
+    ]
+  },
+  {
+    "id": "Q50",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "hard",
+    "question": "How is a NAND read executed (phases, request-code changes, status mechanisms), and how do programs, erases and reset/set-feature differ?",
+    "answer": "Phase 1 (read trigger): IssueNandReq sets reqStatusCheckOpt = CHECK and calls V2FReadPageTriggerAsync (array -> page register); die state EXE; the way moves to the statusCheck list. When the way's ready/busy bit is ready, CheckReqStatus issues V2FStatusCheckAsync (opt -> REPORT, result into statusReport[ch][way]) and the way moves to statusReport. There, when ready: if the report-done bit is set and the operation is complete ((status & 0x60) == 0x60), fail bits (status & 3) give FAIL, otherwise DONE (opt NONE); if done but not complete, opt = CHECK and the way returns to statusCheck (status is re-polled). On DONE, ExecuteNandReq changes reqCode READ -> READ_TRANSFER and sets the die IDLE; the request stays at the queue head and the way goes to the readTransfer list. Phase 2: opt = COMPLETION_FLAG; V2FReadPageTransferAsync(data addr, spare addr, errorInfo addr, completion addr, row) (V2FReadPageTransferRawAsync if ECC is off); the way goes straight to statusReport. Completion = completeFlag bit0; with ECC on, CheckEccErrorInfo yields PASS/WARNING/FAIL; DONE -> GetFromNandReqQ. Programs and erases use only the CHECK/REPORT status-command path; RESET and SET_FEATURE are issued synchronously (V2FResetSync / V2FEnterToggleMode) with opt NONE and complete when the way's ready/busy bit is ready.",
+    "key_points": [
+      "Two phases (read trigger then read transfer) on the same request",
+      "reqCode changes READ -> READ_TRANSFER after the trigger completes",
+      "Trigger/program/erase use the StatusCheck command: complete when (status & 0x60) == 0x60, fail if status & 3",
+      "Transfer completion via completion flag bit0 plus ECC error info",
+      "Reset/set-feature: synchronous issue, completion detected by ready/busy only"
+    ],
+    "source_refs": [
+      "request_schedule.c:174-224",
+      "request_schedule.c:228-318",
+      "request_schedule.c:642-700",
+      "request_schedule.c:800-862",
+      "request_schedule.c:887-912",
+      "nsc_driver.h:79-84"
+    ]
+  },
+  {
+    "id": "Q51",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "medium",
+    "question": "How are NAND status reports and ECC error information decoded?",
+    "answer": "Status report word (StatusCheck): bit0 = report done; status = word >> 1; complete iff (status & 0x60) == 0x60; failed iff (status & 0x3) != 0. Read-transfer completion flag: bit0 = complete. ECC error info (11 words per die; a page is ECC_CHUNKS_PER_PAGE = 32 chunks): word0 bit28 (0x10000000) = CRC valid, word0 bit24 (0x01000000) = spare chunk valid, word1 == 0xFFFFFFFF = all page chunks valid, word0 bits[23:16] = worst chunk's bit-error count. CheckEccErrorInfo: CRC valid && spare valid && all page chunks valid -> PASS, except WARNING if the request's nandEccWarning is ON and the worst count > BIT_ERROR_THRESHOLD_PER_CHUNK (20); anything else -> FAIL. Ready/busy register: bit w = way w ready.",
+    "key_points": [
+      "Status: bit0 done, value >> 1, complete mask 0x60, fail mask 0x3",
+      "Completion flag bit0",
+      "ECC: CRC valid = word0 bit28, spare valid = word0 bit24, word1 all ones, worst count = word0 bits 23:16",
+      "WARNING when worst count > 20 and the warning option is ON; otherwise PASS/FAIL"
+    ],
+    "source_refs": [
+      "nsc_driver.h:72-84",
+      "ftl_config.h:162-165",
+      "request_schedule.c:806-822",
+      "request_schedule.c:864-885"
+    ]
+  },
+  {
+    "id": "Q52",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "hard",
+    "question": "What happens when a host read encounters an uncorrectable ECC error (or a read-trigger status failure)?",
+    "answer": "CheckReqStatus returns REQ_STATUS_FAIL. ExecuteNandReq: for READ or READ_TRANSFER, if retryLimit[ch][way] > 0, it is decremented, reqCode is set back to READ and the die IDLE, so the full read (trigger + transfer) is re-issued; RETRY_LIMIT = 5 -> up to 5 retries (6 attempts). The retry budget is per die, not per request; it is reset to 5 whenever a non-trigger request on that die completes and after final failure/warning handling. When exhausted: it prints 'Read Transfer FAIL on ch.. way.. rowAddr..', marks the physical block grown-bad (phyBlockMap + booked BBT update), resets the counter and completes the request through GetFromNandReqQ as if successful. The chained TxDMA is then released and sends the (uncorrected) buffer contents; the NVMe completion is success - an Unrecovered Read Error status is never reported. A GC read failing the same way leaves bad data in the temp buffer, which the chained GC write then programs.",
+    "key_points": [
+      "Up to RETRY_LIMIT = 5 retries, re-issuing from the read trigger",
+      "Retry counter is per die and reset on completions",
+      "After exhaustion: log, grown-bad marking, request completed as done",
+      "Host receives corrupt data with a successful status"
+    ],
+    "source_refs": [
+      "request_schedule.h:60",
+      "request_schedule.c:806-822",
+      "request_schedule.c:887-954",
+      "request_transform.c:478-509",
+      "garbage_collection.c:88-125"
+    ]
+  },
+  {
+    "id": "Q53",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "medium",
+    "question": "What happens when a NAND program or erase reports a failure status?",
+    "answer": "CheckReqStatus returns FAIL (status & 3 != 0). Programs and erases are never retried (retry applies only to reads). ExecuteNandReq prints 'Write FAIL on' / 'Erase FAIL on' with ch, way, rowAddr, completion and statusReport, marks the physical block via UpdatePhyBlockMapForGrownBadBlock (phyBlockMap bad + grownBadUpdate BOOKED), resets the die's retry limit and completes the request (GetFromNandReqQ -> freed, buffer successors released), die IDLE. The data of a failed program is lost: the L2P map still points to the failed page and nothing is re-written; the block stays in use until the next boot. (For ECC-off scan reads with DATA_BUF_ADDR, the pseudo bad mark 0 is additionally written into the buffer.)",
+    "key_points": [
+      "No retry for program/erase",
+      "Block marked grown-bad in phyBlockMap and a BBT update booked",
+      "Request completed normally; no host error",
+      "Mapping still points to the failed page: data loss; block not retired until reboot"
+    ],
+    "source_refs": [
+      "request_schedule.c:913-954",
+      "address_translation.c:872-877"
+    ]
+  },
+  {
+    "id": "Q54",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "medium",
+    "question": "What happens when a read succeeds but ECC reports a high bit-error count (ECC warning)?",
+    "answer": "If ECC is on, all chunks are valid, the request has nandEccWarning ON (host reads created by DataReadFromNand; eviction writes also set the flag but it only matters for reads) and the worst chunk had more than 20 bit errors, CheckReqStatus returns REQ_STATUS_WARNING. ExecuteNandReq prints 'ECC Uncorrectable Soon on ch.. way.. rowAddr..', marks the physical block grown-bad (phyBlockMap.bad = 1, BBT update booked), resets the retry counter and completes the request normally - the corrected data is delivered to the host. The data is not refreshed or relocated and the block is not retired until reboot. GC reads, BBT reads and bad-block scan reads run with the warning option OFF and never yield WARNING.",
+    "key_points": [
+      "Threshold: worst chunk > 20 bit errors with the warning option ON",
+      "Only host reads (DataReadFromNand) enable the warning option for reads",
+      "Logged and block marked grown-bad (booked BBT update)",
+      "Corrected data delivered; no relocation/refresh"
+    ],
+    "source_refs": [
+      "request_schedule.c:864-885",
+      "request_schedule.c:955-967",
+      "request_transform.c:205-210",
+      "garbage_collection.c:96-97"
+    ]
+  },
+  {
+    "id": "Q55",
+    "category": "nand_scheduling_and_error_handling",
+    "difficulty": "medium",
+    "question": "Describe the NAND storage controller (NSC) software interface and the per-die NAND initialization sequence.",
+    "answer": "There is one NSC per channel at XPAR_TIGER4NSC_n_BASEADDR with registers (V2FMCRegisters): cmdSelect +0x00 (writing an opcode starts the command), rowAddress +0x04, userData +0x08, dataAddress +0x0C, spareAddress +0x10, errorCountAddress +0x14, completionAddress +0x18, waySelection +0x1C, channelBusy +0x20 (non-zero while busy), readyBusy +0x24 (bit w = way w ready). Opcodes: NOP 0, Reset 1, SetFeatures 6, ReadPageTrigger 13, ReadPageTransfer 18, ProgramPage 28, BlockErase 37, StatusCheck 41, GetFeatures 46, ReadPageTransferRaw 55. Parameters are written first and cmdSelect last; the async functions return immediately (transfer/status functions clear the completion word first); Reset/SetFeatures/GetFeatures spin until channelBusy clears. InitNandArray queues, for every channel and way, a RESET request and then a SET_FEATURE request (PHY_ORG, no buffer, no dependency): V2FEnterToggleMode = SetFeatures with a 3-word payload at TEMPORARY_PAY_LOAD_ADDR: 0x6 for feature 0x02, 0x8 for feature 0x10, 0x20 for feature 0x01; then SyncAllLowLevelReqDone. Both are scheduled in the write list and complete on ready/busy.",
+    "key_points": [
+      "Register order cmdSelect .. readyBusy at offsets 0x00-0x24",
+      "Opcodes: Reset 1, SetFeatures 6, ReadPageTrigger 13, ReadPageTransfer 18, ProgramPage 28, BlockErase 37, StatusCheck 41, ReadPageTransferRaw 55",
+      "Write parameters, then cmdSelect; channelBusy is polled",
+      "Init: Reset then SetFeatures (toggle mode, payload 0x6/0x8/0x20) for every die"
+    ],
+    "source_refs": [
+      "nsc_driver.h:60-98",
+      "nsc_driver.c:52-160",
+      "ftl_config.c:108-151",
+      "request_schedule.c:685-696",
+      "request_schedule.c:851-857"
+    ]
+  },
+  {
+    "id": "Q56",
+    "category": "data_buffer",
+    "difficulty": "easy",
+    "question": "How is the data-buffer cache organized (entry counts, entry fields, LRU and hash structures, initial state)?",
+    "answer": "AVAILABLE_DATA_BUFFER_ENTRY_COUNT = 16 x USER_DIES entries (1,024 for 64 dies), each 16 KiB data + 256 B spare; plus AVAILABLE_TEMPORARY_DATA_BUFFER_ENTRY_COUNT = USER_DIES temp entries (one per die, used only by GC; AllocateTempDataBuf(die) simply returns die). DATA_BUF_ENTRY (16 B): logicalSliceAddr, prevEntry/nextEntry (LRU links), blockingReqTail, hashPrevEntry/hashNextEntry, dirty. LRU list: head = most recently used, tail = least recently used; initialized as 0..N-1 (head 0, tail N-1), all entries clean with LSA_NONE and blockingReqTail NONE. The hash table has as many buckets as entries; bucket = LSA % AVAILABLE_DATA_BUFFER_ENTRY_COUNT; chains are doubly linked with insertion at the tail. It is a fully associative slice cache shared by reads and writes.",
+    "key_points": [
+      "16 x USER_DIES entries of 16 KiB (+256 B spare); one temp entry per die for GC",
+      "Entry fields: LSA, LRU links, blockingReqTail, hash links, dirty flag",
+      "LRU head = MRU, tail = LRU; initial order 0..N-1",
+      "Hash bucket = LSA % entry count; chain insertion at tail"
+    ],
+    "source_refs": [
+      "data_buffer.h:52-101",
+      "data_buffer.c:57-86",
+      "data_buffer.c:188-191",
+      "data_buffer.c:206-226"
+    ]
+  },
+  {
+    "id": "Q57",
+    "category": "data_buffer",
+    "difficulty": "hard",
+    "question": "How is a buffer entry allocated on a miss, and how is eviction/write-back performed?",
+    "answer": "AllocateDataBuf takes the LRU tail (assert 'There is no valid buffer entry' if the list is empty), moves it to the MRU head and removes it from its hash chain (SelectiveGetFromDataBufHashList, only if its LSA != LSA_NONE). It does NOT check whether requests are still pending on the entry; correctness relies on chaining all new requests behind them. EvictDataBufEntry: if the entry is dirty -> take a request, vsa = AddrTransWrite(entry's old LSA) (invalidates the old location, allocates a new page, may run GC), build a NAND WRITE (dataBufFormat ENTRY, VSA, ECC on, ECC warning on, row-address check, MAIN space, nvmeCmdSlotTag copied from the triggering request), chain it on the entry, SelectLowLevelReqQ, and mark the entry CLEAN. A clean victim is reused without any NAND I/O. The caller then retags the entry with the new LSA and inserts it into the new hash bucket.",
+    "key_points": [
+      "Victim = LRU tail, moved to MRU head and removed from the hash",
+      "No check for in-flight requests; ordering relies on the buffer-dependency chain",
+      "Dirty victim: AddrTransWrite + NAND write request (ECC on, warning on, row check)",
+      "Entry marked clean immediately after the write-back is queued",
+      "Clean victim reused without NAND access"
+    ],
+    "source_refs": [
+      "data_buffer.c:144-173",
+      "data_buffer.c:229-260",
+      "request_transform.c:162-190",
+      "request_transform.c:240-250"
+    ]
+  },
+  {
+    "id": "Q58",
+    "category": "data_buffer",
+    "difficulty": "medium",
+    "question": "What is the write-caching policy? When does the host see a write as complete, and what happens on an NVMe Flush command or when the host disables the volatile write cache?",
+    "answer": "Write-back. Write data is DMA'd into the DRAM buffer entry, which is marked dirty when the slice request is transformed; the NVMe completion is posted by the host-interface hardware's auto-completion once all Rx DMAs of the command finish - before any NAND program. Dirty data reaches NAND only when the entry is evicted by LRU replacement. IO Flush (opcode 0x00) only prints 'IO Flush Command' and posts a successful completion immediately (set_auto_nvme_cpl with status 0) without writing anything back. Set Features VWC stores dword11 bit0 in g_nvmeTask.cacheEn (Get Features returns it), but cacheEn is never used by the data path, so disabling the cache changes nothing; Identify always reports VWC present = 1. Dirty buffers are also not flushed on shutdown or controller reset.",
+    "key_points": [
+      "Write-back cache; dirty set at slice transform",
+      "Completion after the Rx DMA via hardware auto-completion, before the NAND program",
+      "NAND program only at eviction",
+      "Flush returns success immediately without flushing",
+      "VWC set/get is stored in cacheEn but has no effect"
+    ],
+    "source_refs": [
+      "request_transform.c:259-275",
+      "request_transform.c:575-611",
+      "nvme/nvme_io_cmd.c:127-134",
+      "nvme/nvme_admin_cmd.c:109-116",
+      "nvme/nvme_admin_cmd.c:158-165",
+      "nvme/nvme_identify.c:125"
+    ]
+  },
+  {
+    "id": "Q59",
+    "category": "data_buffer",
+    "difficulty": "medium",
+    "question": "What happens when a read hits a buffer entry whose NAND fill read (or a previous DMA or eviction write-back) is still in progress?",
+    "answer": "On a hit no new NAND read is created. The TxDMA request is appended to the entry's blocking chain, so CheckBufDep fails and it is parked in the blocked-by-buffer-dependency queue; it is only issued to the DMA engine (IssueNvmeDmaReq) when its predecessor (e.g. the pending NAND read, which itself may be queued behind an eviction write-back of the entry's previous slice) completes and ReleaseBlockedByBufDepReq releases it. The host therefore always receives the data produced by the earlier operations on that entry, never a partially filled buffer. Likewise an RxDMA into an entry waits for an outstanding write-back of the entry's previous contents.",
+    "key_points": [
+      "No duplicate NAND read on a hit",
+      "TxDMA chained on the entry and waiting in the buffer-dependency queue",
+      "Released only when the predecessor (fill read / write-back / DMA) completes",
+      "Guarantees ordering of all operations on the entry"
+    ],
+    "source_refs": [
+      "request_transform.c:233-238",
+      "request_transform.c:270-274",
+      "request_transform.c:406-416",
+      "request_transform.c:454-472",
+      "request_transform.c:478-509",
+      "data_buffer.c:176-185"
+    ]
+  },
+  {
+    "id": "Q60",
+    "category": "data_buffer",
+    "difficulty": "hard",
+    "question": "What happens when the host reads an LSA whose dirty entry was just evicted and whose write-back program has not executed yet?",
+    "answer": "The evicted entry was removed from the hash and retagged, so the read misses and gets another entry (possibly evicting yet another one). AddrTransWrite already updated logicalSliceMap during the eviction, so AddrTransRead returns the NEW VSA. The NAND read uses the row-address check: if the write-back program for that page has already been dispatched to the die's NAND queue (page < permittedProgPage), the read is queued behind it in the same per-die FIFO and executes after the program; otherwise (write-back still waiting on its buffer chain, or earlier pages of the block not yet dispatched) the read is counted in blockedReadReqCnt and parked in the die's row-address-blocked queue until the program is dispatched. The host therefore reads the new data from NAND; there is no forwarding from the buffer that still holds it.",
+    "key_points": [
+      "The read misses (the old entry was retagged)",
+      "The map already points to the new VSA assigned at eviction",
+      "Row-address dependency holds the read until the program is dispatched",
+      "Per-die FIFO executes the read after the program; no buffer forwarding"
+    ],
+    "source_refs": [
+      "request_transform.c:162-219",
+      "request_transform.c:287-324",
+      "address_translation.c:641-658",
+      "data_buffer.c:144-173"
+    ]
+  },
+  {
+    "id": "Q61",
+    "category": "nvme_host_interface",
+    "difficulty": "easy",
+    "question": "Which NVMe admin commands are supported, what notable behavior do they have, and what happens with an unsupported admin opcode?",
+    "answer": "Supported: Delete I/O SQ (0x00), Create I/O SQ (0x01), Get Log Page (0x02), Delete I/O CQ (0x04), Create I/O CQ (0x05), Identify (0x06), Set Features (0x09), Get Features (0x0A) and Asynchronous Event Request (0x0C). Notables: Identify decodes only bit 0 of CNS (1 -> controller, 0 -> namespace, so CNS = 2 is treated as a namespace request); Get Log Page transfers no data and completes with status SUCCESS and DW0 = 0x9 (meant as 'invalid log page' but not encoded as an error status); AER is never completed - its slot is released via set_nvme_slot_release without a CQ entry. Everything else (Abort 0x08, Firmware Commit/Download, Format NVM 0x80, Security Send/Receive, ...) prints 'Not Support Admin Command OPC' and ASSERT(0): it prints the file/line and spins forever (the device hangs; no error completion). Completions are posted with set_auto_nvme_cpl(slotTag, DW0, status).",
+    "key_points": [
+      "Supported opcodes: 0x00, 0x01, 0x02, 0x04, 0x05, 0x06, 0x09, 0x0A, 0x0C",
+      "Get Log Page: success status with DW0 = 9 and no data",
+      "AER: slot released, never completed",
+      "Unsupported opcode -> ASSERT -> infinite loop",
+      "Only CNS bit 0 is decoded"
+    ],
+    "source_refs": [
+      "nvme/nvme_admin_cmd.c:295-462",
+      "nvme/nvme.h:64-79",
+      "nvme/nvme.h:401-410",
+      "nvme/debug.h:52-60"
+    ]
+  },
+  {
+    "id": "Q62",
+    "category": "nvme_host_interface",
+    "difficulty": "easy",
+    "question": "Which NVM I/O commands are supported, and what happens if the host sends Dataset Management (TRIM), Write Zeroes, Compare or Write Uncorrectable?",
+    "answer": "Only Flush (0x00, completed immediately with success and no flushing), Write (0x01) and Read (0x02) (both go to ReqTransNvmeToSlice). Any other opcode prints 'Not Support IO Command OPC: %X' and ASSERT(0) -> infinite loop: the firmware hangs and the command never completes. Identify advertises ONCS = 0 (no Compare, Write Uncorrectable or DSM), so a compliant host should not send them; TRIM/unmap is not implemented at all (LSAs are never unmapped). For Read/Write the FUA bit (its check is commented out), DSM hints (DW13), PRINFO and LR are ignored, and NSID is not checked.",
+    "key_points": [
+      "Supported: Flush, Write, Read",
+      "Flush is a no-op success",
+      "Any other opcode -> ASSERT hang",
+      "ONCS = 0; no TRIM; FUA ignored"
+    ],
+    "source_refs": [
+      "nvme/nvme_io_cmd.c:64-154",
+      "nvme/nvme.h:81-87",
+      "nvme/nvme_identify.c:115-117"
+    ]
+  },
+  {
+    "id": "Q63",
+    "category": "nvme_host_interface",
+    "difficulty": "easy",
+    "question": "What key values does the firmware return in Identify Controller and Identify Namespace, and how is the Identify data transferred?",
+    "answer": "Controller: VID = SSVID = 0x1EDC; SN 'SSDD515T', MN 'Cosmos+ OpenSSD', FR 'TYPE0005' (space-padded, but memcpy with sizeof also copies the terminating NUL into SN/MN, and FR's NUL spills into RAB which is then set to 0); IEEE OUI E4 D2 5C; MDTS = 8 (1 MiB maximum transfer with 4 KiB pages); CNTLID = 9; OACS = 0; ACL = 3; AERL = 3; FRMW: slot 1 read-only, 1 slot; LPA = 0; ELPE = 8; NPSS = 0; SQES = 0x66 (64 B); CQES = 0x44 (16 B); NN = 1; ONCS = 0; FUSES = 0; FNA = 0; VWC present = 1; SGL unsupported; PSD0 MP = 0x09C4 (25.00 W). Namespace: NSZE = NCAP = NUSE = storageCapacity_L (upper dword 0); no thin provisioning; NLBAF = 0 (single format); FLBAS = 0; LBAF0: MS = 0, LBADS = 12 (4,096-byte LBAs), RP = 2; no metadata or protection. The data is built at 0x00200000 and sent with direct Tx DMA: the PRP1 part up to the 4 KiB boundary, the remainder via PRP2, then a busy-wait for DMA completion.",
+    "key_points": [
+      "VID/SSVID 0x1EDC; MN 'Cosmos+ OpenSSD'",
+      "MDTS 8, SQES 0x66, CQES 0x44",
+      "NN 1, ONCS 0, VWC present",
+      "LBADS 12 (4 KiB), NLBAF 0, MS 0",
+      "NSZE = NCAP = NUSE = storageCapacity_L"
+    ],
+    "source_refs": [
+      "nvme/nvme_identify.c:60-197",
+      "nvme/nvme_identify.h:52-56",
+      "nvme/nvme_admin_cmd.c:295-347"
+    ]
+  },
+  {
+    "id": "Q64",
+    "category": "nvme_host_interface",
+    "difficulty": "medium",
+    "question": "What queue-management limits and feature handling does the firmware implement (Create I/O SQ/CQ checks, Set/Get Features)?",
+    "answer": "Up to 8 I/O SQs and 8 I/O CQs (MAX_NUM_OF_IO_SQ/CQ = 8; QID 1..8 stored at index QID-1). Create I/O SQ asserts PRP1 low 4 bits == 0 and PRP1 high dword < 0x10, 0 < QID <= 8, QSIZE < 0x100 (<= 256 entries) and 0 < CQID <= 8, then programs the hardware SQ register (base, valid, cqVector = CQID, size). Create I/O CQ asserts an aligned PRP1, IV < 8, QSIZE < 0x100 and 0 < QID <= 8, then programs base, valid, irqEn = IEN, irqVector = IV, size. Only physically contiguous queues are supported (PC is not checked); delete clears the registers. Set Features: Number of Queues (FID 7) -> DW0 echoes NSQR/NCQR each clamped to 7 (max 8 queues); Arbitration (1), Power Management (2), Interrupt Coalescing (8), Async Event Configuration (0x0B) -> accepted and ignored; VWC (6) -> cacheEn. Get Features: LBA Range Type (3) -> status Invalid Field in Command (asserts NSID == 1); Temperature Threshold (4) -> returns DW11; VWC -> cacheEn; Power Management -> 0. Any other FID (e.g. Get Number of Queues, Set Temperature Threshold, Error Recovery) -> ASSERT hang. The admin queue is enabled by the firmware writing the admin-queue register when CC.EN becomes 1.",
+    "key_points": [
+      "8 I/O SQs + 8 I/O CQs; QSIZE < 256, IV < 8, PRP 16-byte aligned",
+      "Set Number of Queues clamps NSQR/NCQR to 7",
+      "Supported Set FIDs: 1, 2, 6, 7, 8, 0x0B; Get FIDs: 2, 3, 4, 6",
+      "Get LBA Range Type returns Invalid Field in Command",
+      "Unsupported FID -> ASSERT hang"
+    ],
+    "source_refs": [
+      "nvme/nvme_admin_cmd.c:60-293",
+      "nvme/nvme.h:54-55",
+      "nvme/nvme.h:175-187",
+      "nvme/host_lld.c:281-313"
+    ]
+  },
+  {
+    "id": "Q65",
+    "category": "nvme_host_interface",
+    "difficulty": "hard",
+    "question": "How are host data transfers performed for Read/Write, how does the firmware detect their completion, and who generates the NVMe completion?",
+    "answer": "IssueNvmeDmaReq issues one auto DMA per 4 KiB NVMe block of the slice request: set_auto_rx_dma (host -> device, for writes) or set_auto_tx_dma (device -> host, for reads) with (cmdSlotTag, cmd4KBOffset = startIndex + i, devAddr = 0x10000000 + entry x 16 KiB + (nvmeBlockOffset + i) x 4 KiB, autoCompletion = 1). Only devAddr and the control word are written; the hardware derives the host address from the command's PRPs using the 4 KiB offset (asserted < 256). The auto Rx and Tx DMA command FIFOs have 256 entries: the firmware spins while (tail + 1) % 256 == head (head read from HOST_DMA_FIFO_CNT). After issuing, the request records reqTail = the software FIFO tail and overFlowCnt = the number of 8-bit tail wrap-arounds. CheckDoneNvmeDmaReq walks the NVMe DMA queue from tail (newest) to head; for the first Rx (resp. Tx) request whose recorded tail has been passed by the hardware head (check_auto_*_dma_partial_done, wrap-aware via the overflow count), that request and all older Rx (resp. Tx) requests are considered done and freed (the DMA engine completes in order). The NVMe CQ entry for Read/Write is produced by the hardware when all auto-completion DMAs of the command have finished. Admin data (Identify) instead uses direct DMA with an explicit PCIe address and length (<= 4 KiB, 16-byte aligned) and busy-waits.",
+    "key_points": [
+      "One auto DMA per 4 KiB with slot tag, 4 KiB offset and DRAM address",
+      "DMA FIFO depth 256; firmware spins when full",
+      "Completion detection via recorded FIFO tail + overflow count compared with the hardware head",
+      "A finished newer request implies older same-direction requests are finished",
+      "NVMe completion for I/O generated by hardware auto-completion"
+    ],
+    "source_refs": [
+      "request_transform.c:575-645",
+      "nvme/host_lld.c:316-546",
+      "nvme/host_lld.h:262-298",
+      "nvme/nvme_admin_cmd.c:324-343"
+    ]
+  },
+  {
+    "id": "Q66",
+    "category": "nvme_host_interface",
+    "difficulty": "medium",
+    "question": "What happens if a Read/Write has a start LBA >= the advertised capacity, a non-zero upper LBA dword, a range running past the end of the namespace, or a transfer larger than 1 MiB?",
+    "answer": "handle_nvme_io_read/write ASSERT that startLba[0] < storageCapacity_L and startLba[1] == 0 (STORAGE_CAPACITY_H = 0), that the PRP1/PRP2 low dwords are 16-byte aligned and that the PRP high dwords are < 0x10. A failing ASSERT prints 'error in <file>: Line <n>' and loops forever - no LBA Out of Range (or any other) error completion is returned. Only the start LBA is checked: a range that starts inside the namespace but extends past its end is processed normally (slices above the exported capacity but below SLICES_PER_SSD are mapped like any other; an LSA >= SLICES_PER_SSD would hit the FTL assert). The NLB limit check (MAX_NUM_OF_NLB) is commented out, but every auto DMA asserts cmd4KBOffset < 256, so a transfer of more than 256 x 4 KiB = 1 MiB (beyond MDTS = 8) hangs the firmware.",
+    "key_points": [
+      "Start LBA >= capacity or upper LBA dword != 0 -> ASSERT -> infinite loop",
+      "No NVMe error status is ever returned",
+      "The end of the range is not checked",
+      "More than 256 blocks (1 MiB) trips the cmd4KBOffset < 256 assert"
+    ],
+    "source_refs": [
+      "nvme/nvme_io_cmd.c:76-85",
+      "nvme/nvme_io_cmd.c:104-113",
+      "nvme/debug.h:52-60",
+      "nvme/host_lld.c:366-372",
+      "nvme/host_lld.c:398-404",
+      "nvme/nvme.h:59-62",
+      "address_translation.c:624-658"
+    ]
+  },
+  {
+    "id": "Q67",
+    "category": "nvme_host_interface",
+    "difficulty": "medium",
+    "question": "How does the firmware receive NVMe commands from the host-interface hardware and post completions?",
+    "answer": "The NVMe IP fetches SQ entries itself. The firmware polls NVME_CMD_FIFO_REG (IP base + 0x300): bit31 cmdValid, bits[3:0] qID, bits[14:8] cmdSlotTag (7 bits -> 128 slots), bits[23:16] cmdSeqNum. The 64-byte command is read as 16 dwords from NVME_CMD_SRAM (base + 0x2000) + slotTag x 64. Completions go to NVME_CPL_FIFO (base + 0x304): auto completion (cplType 1) writes DW0 'specific' to +4 and {cmdSlotTag[6:0], cplType[15:14], status field[31:16]} to +8 - the hardware supplies CID/SQID from the slot; slot release (cplType 2) frees a slot without a CQ entry (used for AER); cplType 0 (completion only) writes sqId/cid explicitly (an unused path). Read/Write completions are posted by DMA auto-completion; Flush and admin commands by set_auto_nvme_cpl. Status field word: bit0 reserved (phase), SC bits[8:1], SCT bits[11:9], M bit14, DNR bit15.",
+    "key_points": [
+      "Poll the command FIFO register: valid bit, qID, 7-bit slot tag, sequence number",
+      "Command dwords read from command SRAM at slotTag x 64",
+      "Completion FIFO types: auto completion by slot tag (1), slot release (2), explicit completion (0)",
+      "Status field layout: SC bits 8:1, SCT bits 11:9"
+    ],
+    "source_refs": [
+      "nvme/host_lld.h:58-90",
+      "nvme/host_lld.h:160-210",
+      "nvme/host_lld.h:300-304",
+      "nvme/host_lld.c:218-279",
+      "nvme/nvme.h:261-282"
+    ]
+  },
+  {
+    "id": "Q68",
+    "category": "init_boot_persistence",
+    "difficulty": "easy",
+    "question": "In what order does InitFTL initialize the subsystems, and why must the request/scheduler layers be initialized before the address map?",
+    "answer": "CheckConfigRestriction -> InitChCtlReg (chCtlReg[ch] = NSC_ch_BASEADDR) -> InitReqPool (pool pointer, all requests in the free queue, all queues empty, counters 0) -> InitDependencyTable (row-address table zeroed) -> InitReqScheduler (table pointers, all ways idle, retry limits 5, flags 0) -> InitNandArray (RESET + SET_FEATURE to every die, then sync) -> InitAddressMap (phyBlockMap identity, BBT block 0, first allocation die, slice maps cleared, InitBlockDieMap) -> InitDataBuf (LRU/hash/temp buffers) -> InitGcVictimMap (all buckets empty) -> storageCapacity_L computed and printed. NAND reset, BBT read/scan/save and block erasure are performed through the regular request pool, dependency check and scheduler (SelectLowLevelReqQ + SyncAllLowLevelReqDone), so those layers must exist first. InitFTL runs inside nvme_main before the host is told to start ('Turn on the host PC').",
+    "key_points": [
+      "Order: config check, NSC registers, request pool, dependency table, scheduler, NAND reset, address map, data buffer, GC victim map, capacity",
+      "NAND/BBT initialization uses the normal request and scheduler machinery",
+      "Capacity is computed last (it needs the bad-block count)"
+    ],
+    "source_refs": [
+      "ftl_config.c:57-74",
+      "nvme/nvme_main.c:77-82"
+    ]
+  },
+  {
+    "id": "Q69",
+    "category": "init_boot_persistence",
+    "difficulty": "hard",
+    "question": "Describe the boot-time block initialization (InitBlockDieMap), including the operator prompt.",
+    "answer": "It prints \"Press 'X' to re-make the bad block table.\" and blocks in inbyte() until a character arrives on the UART console. If it is 'X', EraseTotalBlockSpace erases every physical block 0..8367 of every die (PHY_ORG, total space - including BBT blocks and factory-bad blocks) and eraseFlag = 0. Then: InitDieMap (empty free lists); RecoverBadBlockTable(RESERVED_DATA_BUFFER_BASE_ADDR): read each die's BBT (block 0, page 1), load it if its first byte is 0 or 1, otherwise scan the factory marks (FindBadBlock) and save new tables (SaveBadBlockTable); clear grownBadUpdate. Then mark each die's BBT block bad in phyBlockMap; RemapBadBlock; InitBlockMap (virtual block bad flags, free = 1, counters 0, eraseCnt 0, good blocks appended to the free list); if eraseFlag is still 1 (i.e. 'X' was not pressed) EraseUserBlockSpace erases every good user virtual block (VSA addressing, no dependency check); finally InitCurrentBlockOfDieMap takes one free block per die as the current block (assert if none).",
+    "key_points": [
+      "Boot blocks on UART inbyte(); 'X' erases the whole array and forces a BBT rebuild",
+      "RecoverBadBlockTable: read, validate, scan and save as needed",
+      "BBT block masked as bad, then remap and block-map initialization",
+      "All good user blocks are erased at every normal boot",
+      "One current block per die taken from the free list"
+    ],
+    "source_refs": [
+      "address_translation.c:204-254",
+      "address_translation.c:466-622"
+    ]
+  },
+  {
+    "id": "Q70",
+    "category": "init_boot_persistence",
+    "difficulty": "hard",
+    "question": "After a power cycle (even following a clean NVMe shutdown), which host data is still readable and which FTL state is recovered from flash?",
+    "answer": "None of the host data. The only persistent FTL structure is the per-die bad block table (physical block 0, page 1). The L2P/P2L slice maps, block/die metadata (invalid counts, free lists, erase counts), GC lists and the data buffer exist only in DRAM and are never saved; no LSA or other metadata is written into the page spare area (the 256-byte spare buffers are never filled by the FTL), so the maps could not be rebuilt by scanning either. At every boot InitSliceMap marks all LSAs unmapped and InitBlockDieMap erases every good user block (EraseUserBlockSpace, or the whole array if 'X' is pressed). Dirty write-back data still in DRAM at power-off is lost as well. Reads after a reboot therefore return stale/uninitialized buffer contents for every LBA.",
+    "key_points": [
+      "Only the bad block table persists on NAND",
+      "Maps and block metadata are DRAM-only and never saved",
+      "No LSA/OOB metadata is written to the spare area, so no rebuild by scan",
+      "All good user blocks are erased at every boot; all host data is lost"
+    ],
+    "source_refs": [
+      "address_translation.c:90-98",
+      "address_translation.c:564-622",
+      "nvme/nvme_main.c:121-146",
+      "request_schedule.c:774-797"
+    ]
+  }
+]

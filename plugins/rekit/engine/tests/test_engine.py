@@ -100,6 +100,10 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(ws, '.rekit', 'inventory.json')))
         self.assertTrue(os.path.exists(os.path.join(ws, '.rekit', 'prompts', 'kitspec.md')))
         self.assertNotIn('{{LANG}}', open(os.path.join(ws, '.rekit', 'prompts', 'kitspec.md'), encoding='utf-8').read())
+        r = subprocess.run(RK + ['run', ws, '--until', 'inventory'], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)          # already done: must not proceed to survey
+        self.assertIn('일시정지', r.stdout)
+        self.assertFalse(os.path.exists(os.path.join(ws, '.rekit', 'logs')))
         r = subprocess.run(RK + ['status', ws, '--json'], capture_output=True, text=True)
         st = json.loads(r.stdout.strip().splitlines()[-1])
         self.assertEqual(st['phases']['inventory'], 'done')
@@ -115,6 +119,24 @@ class EngineTests(unittest.TestCase):
         self.assertIn('code:src/ftl.c#victim', cov['unreferenced_symbols'])
         self.assertNotIn('code:src/ftl.c#gc_run', cov['unreferenced_symbols'])
         self.assertNotIn('code:src/ftl.c', cov['unreferenced_files'])
+
+    def test_state_concurrency(self):
+        import threading
+        ws = os.path.join(self.tmp, 'work4')
+        subprocess.run(RK + ['init', ws, '--code', self.code, '--no-intake'], capture_output=True, text=True, check=True)
+        p = Pipeline(ws)
+
+        def worker(i):
+            for j in range(50):
+                p.update_state(lambda s: s['sessions'].append({'step': f'w{i}', 'cost_usd': 0.01}))
+                p.update_state(lambda s: s['units'].__setitem__(f'U{i}_{j}', 'done'))
+
+        ths = [threading.Thread(target=worker, args=(i,)) for i in range(8)]
+        [t.start() for t in ths]; [t.join() for t in ths]
+        st = json.load(open(os.path.join(ws, '.rekit', 'state.json')))
+        self.assertEqual(len(st['sessions']), 400)
+        self.assertEqual(len(st['units']), 400)
+        self.assertAlmostEqual(Pipeline(ws).total_cost(), 4.0, places=2)
 
     def test_prompts_render(self):
         ws = os.path.join(self.tmp, 'work3')

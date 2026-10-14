@@ -1,0 +1,5 @@
+BIN rule evaluation with a dedicated rule table: PRIORITY asc, product-specific before '*', BIN_NO desc;
+USE_YN='N' ignored, unknown ITEM_CD skipped, rule for another product never applies; operators < <= > >=
+at exact thresholds; READ/WRITE use MIN over effective steps, LAT/BAD/ECC/TEMP use MAX. Hard-coded
+enterprise override (PROD_CD 'E%' and max BAD_BLK > 20 -> BIN5 OVR_E) runs BEFORE rules, ABORT before it.
+ADV only (time-zone independent).

@@ -1,0 +1,5 @@
+MS949 byte semantics. ADV operator names of 2..10 bytes (record = 140 BYTES, not chars); one ADV record
+padded by CHARACTERS (143 bytes) -> E01. TER operator names (UTF-8) cut to 10 MS949 bytes without
+splitting a Hangul char (incl. a cut that keeps a trailing space). YIELD report PROD_NM cut to 20 bytes:
+exact fit, cut ending in space, ASCII cut, cut that would split a Hangul char (-> 19 bytes + 1 pad),
+short name padded. ALERT csv with Korean product name in UTF-8.

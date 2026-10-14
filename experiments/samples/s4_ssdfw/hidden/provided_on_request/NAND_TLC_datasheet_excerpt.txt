@@ -1,0 +1,24 @@
+T-gen2 3D TLC NAND - datasheet excerpt (rev 1.3, CONFIDENTIAL)          [S4 양산 NAND]
+
+Organization (per die, as configured for S4 product):
+  page           : 16384 + 64 bytes usable spare (controller ECC parity excluded)
+  pages / block  : 48  (16 word lines x 3 bits)
+  blocks         : 96 (S4 configuration, 8 dies x 12 blocks)
+  program order  : pages must be programmed sequentially within a block, once per erase
+
+Endurance / retention:
+  P/E cycles     : 3000 (JEDEC client)
+  read disturb   : refresh recommended before 20000 reads per block
+
+Bad blocks:
+  factory bad marking : byte 0 of the spare area of page 0 != 0xFF
+  block 0 is guaranteed good at shipment
+
+Read retry (SET FEATURE address 0x89, P1 = option):
+  option 0 : default read levels
+  option 1..7 : vendor read-level shift tables, try in ascending order (1, 2, ... 7)
+  If ECC fails at all options the page is considered uncorrectable.
+  Pages recovered at option >= 4 should be relocated (refresh).
+
+Operation status:
+  program / erase failure is reported in status bit 0; the block must be retired.

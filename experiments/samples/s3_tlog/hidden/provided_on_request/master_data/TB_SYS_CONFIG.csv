@@ -1,0 +1,4 @@
+"CFG_KEY","CFG_VAL","CFG_DESC"
+"RETENTION_DAYS","90","테스트결과 보관일수"
+"MES_IF_DIR","/data/tlog/outbox","MES 연계 디렉토리 (참고용)"
+"ALERT_MAIL_GROUP","quality-yield","수율 경보 메일 그룹 (메일 스크립트 사용)"

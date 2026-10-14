@@ -1,0 +1,4 @@
+Retest limit: per (SERIAL, STEP) only the first 3 attempts (by START_DTM) count, effective attempt =
+last counted (design doc and Constants.MAX_RETEST say 5 - not used). Cases with 1..5 attempts, ignored
+4th/5th PASS/ABORT/bad READ, ABORT only when in the effective attempt, rules evaluated on effective
+attempts only, attempts interleaved across ADV and TER (ordering needs correct UTC->KST conversion).

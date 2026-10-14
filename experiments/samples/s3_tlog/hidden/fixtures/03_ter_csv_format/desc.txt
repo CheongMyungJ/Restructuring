@@ -1,0 +1,5 @@
+TER CSV parsing. File 01: UTF-8 BOM, CRLF, '#EOF,n' trailer, serial normalisation (SN prefix, lower case,
+spaces, '-'), SN+ES sample, quoted fields with comma and doubled quotes, all-quoted line, padded values,
+READ/WRITE 2-decimal values rounded HALF_UP to 1 decimal. File 02: no BOM, LF, no trailer, blank line,
+TEMP_F -> C rounded HALF_UP (32.9 -> 1, 22.1 -> -6, 184.1 -> 85 = BIN6 where double maths gives 84).
+Non-matching inbox names (other date, 1-digit seq, lower case, .bak) must stay in inbox.

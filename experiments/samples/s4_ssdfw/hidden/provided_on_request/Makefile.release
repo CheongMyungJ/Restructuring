@@ -1,0 +1,28 @@
+#
+# Makefile.release - S4 release build (BUILD SERVER ONLY, jenkins job s4-fw-release)
+#
+#   !! 저장소에 커밋하지 말 것 - 양산 구성 포함 !!
+#
+#   make -f Makefile.release release      ASIC 양산 바이너리 (s4fw_<rev>.bin)
+#   make -f Makefile.release sim-release  검증팀 golden 용 sim 라이브러리 (양산 설정)
+#
+# 2017.09 release: hjlee / 2019.04 last change (OP 10 -> 12, 고객 요구)
+#
+
+PROD_FLAGS   = -DCFG_NAND_TYPE=TLC -DCFG_OP_PERCENT=12
+CROSS        = arm-none-eabi-
+ASIC_CFLAGS  = -DFW_ASIC -mcpu=cortex-r5 -mthumb -mfloat-abi=soft -Os -ffunction-sections
+REV         := $(shell grep FW_REVISION config/fw_config.h | head -1 | cut -d'"' -f2)
+
+.PHONY: release sim-release
+
+release:
+	$(MAKE) -f Makefile clean
+	$(MAKE) -f Makefile asic CC=$(CROSS)gcc AR=$(CROSS)ar \
+	        EXTRA_CFLAGS="$(PROD_FLAGS) $(ASIC_CFLAGS)"
+	$(CROSS)objcopy -O binary build/asic/s4fw.elf s4fw_$(REV).bin
+	./tools/sign_image s4fw_$(REV).bin keys/s4_release.pem
+
+sim-release:
+	$(MAKE) -f Makefile clean
+	$(MAKE) -f Makefile libssdfw.a EXTRA_CFLAGS="$(PROD_FLAGS)"

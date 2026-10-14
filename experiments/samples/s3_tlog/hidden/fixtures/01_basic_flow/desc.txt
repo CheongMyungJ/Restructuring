@@ -1,0 +1,4 @@
+Basic end-to-end day: 1 ADV + 1 TER file, LOAD -> JUDGE -> YIELD.
+Lot L25031201 (C512A100, 12 dev: 6 ADV + 6 TER whose KST times are before 15:00, i.e. UTC 23:xx-04:xx),
+lot L25031202 (E3840A01, 10 dev). Rules R30_READ_C512 (BIN3), R40_LAT_E384 (BIN2 = pass bin),
+R20_TEMP_HI (BIN6), FT2 FAIL -> DEFAULT_F. Both lots alert (83.33 < 95, 90.00 < 97).

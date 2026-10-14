@@ -1,0 +1,1177 @@
+{
+  "harness_version": "1.0",
+  "app_dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/samples/s3_tlog/legacy",
+  "java_opts": "-Dtlog.dup.policy=LAST",
+  "started_at": "2026-10-14T17:11:32",
+  "work_dir": null,
+  "fixtures": [
+    {
+      "name": "01_basic_flow",
+      "description": "Basic end-to-end day: 1 ADV + 1 TER file, LOAD -> JUDGE -> YIELD.\nLot L25031201 (C512A100, 12 dev: 6 ADV + 6 TER whose KST times are before 15:00, i.e. UTC 23:xx-04:xx),\nlot L25031202 (E3840A01, 10 dev). Rules R30_READ_C512 (BIN3), R40_LAT_E384 (BIN2 = pass bin),\nR20_TEMP_HI (BIN6), FT2 FAIL -> DEFAULT_F. Both lots alert (83.33 < 95, 90.00 < 97).",
+      "passed": 6,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250312",
+          "rc": 0,
+          "seconds": 2.3
+        },
+        {
+          "line": "JUDGE 20250312",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250312",
+          "rc": 0,
+          "seconds": 2.1
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -20,18 +20,18 @@\n-D250312A0007,BI,20250312104900,20250312110100,20250312,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0007,FT1,20250312084900,20250312090100,20250312,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0007,FT2,20250312134900,20250312140100,20250312,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0008,BI,20250312105600,20250312110800,20250312,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0008,FT1,20250312085600,20250312090800,20250312,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0008,FT2,20250312135600,20250312140800,20250312,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0009,BI,20250312110300,20250312111500,20250312,L25031201,C512A100,TER-07,이서연,P,440,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0009,FT1,20250312090300,20250312091500,20250312,L25031201,C512A100,TER-07,이서연,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0009,FT2,20250312140300,20250312141500,20250312,L25031201,C512A100,TER-07,이서연,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0010,BI,20250312111000,20250312112200,20250312,L25031201,C512A100,TER-07,박지호,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0010,FT1,20250312091000,20250312092200,20250312,L25031201,C512A100,TER-07,박지호,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0010,FT2,20250312141000,20250312142200,20250312,L25031201,C512A100,TER-07,박지호,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0011,BI,20250312111700,20250312112900,20250312,L25031201,C512A100,TER-07,최수아,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0011,FT1,20250312091700,20250312092900,20250312,L25031201,C512A100,TER-07,최수아,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0011,FT2,20250312141700,20250312142900,20250312,L25031201,C512A100,TER-07,최수아,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0012,BI,20250312112400,20250312113600,20250312,L25031201,C512A100,TER-07,정우진,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0012,FT1,20250312092400,20250312093600,20250312,L25031201,C512A100,TER-07,정우진,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n-D250312A0012,FT2,20250312142400,20250312143600,20250312,L25031201,C512A100,TER-07,정우진,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0007,BI,20250312014900,20250312020100,20250311,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0007,FT1,20250311234900,20250312000100,20250311,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0007,FT2,20250312044900,20250312050100,20250311,L25031201,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0008,BI,20250312015600,20250312020800,20250311,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0008,FT1,20250311235600,20250312000800,20250311,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0008,FT2,20250312045600,20250312050800,20250311,L25031201,C512A100,TER-07,김민준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0009,BI,20250312020300,20250312021500,20250311,L25031201,C512A100,TER-07,이서연,P,440,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0009,FT1,20250312000300,20250312001500,20250311,L25031201,C512A100,TER-07,이서연,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n+D250312A0009,FT2,20250312050300,20250312051500,20250311,L25031201,C512A100,TER-07,이서연,P,540,500,90,2,500,62,SA21C05,TER,TER_20250312_01.csv\n... (40 more diff lines)",
+          "rows_expected": 66,
+          "rows_actual": 66,
+          "rows_matched": 33
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -8,6 +7,0 @@\n-D250312A0007,20250312,C512A100,L25031201,1,DEFAULT,N\n-D250312A0008,20250312,C512A100,L25031201,1,DEFAULT,N\n-D250312A0009,20250312,C512A100,L25031201,3,R30_READ_C512,N\n-D250312A0010,20250312,C512A100,L25031201,1,DEFAULT,N\n-D250312A0011,20250312,C512A100,L25031201,1,DEFAULT,N\n-D250312A0012,20250312,C512A100,L25031201,1,DEFAULT,N",
+          "rows_expected": 22,
+          "rows_actual": 16,
+          "rows_matched": 16
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2 +2 @@\n-20250312,C512A100,L25031201,12,10,83.33,10,0,1,0,0,0,1,0,0,Y\n+20250312,C512A100,L25031201,6,5,83.33,5,0,0,0,0,0,1,0,0,N",
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250312.csv",
+          "pass": false,
+          "diff": "size expected=236 actual=152, first difference at byte 79\n--- expected\n+++ actual\n@@ -2 +1,0 @@\n-'20250312,C512A100,\"클라이언트 SSD 512GB 보급형\",L25031201,12,10,83.33,95.00\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250312.txt",
+          "pass": false,
+          "diff": "size expected=248 actual=248, first difference at byte 106\n--- expected\n+++ actual\n@@ -2 +2 @@\n-'DC512A100L25031201 클라이언트 SSD 512GB00000120000010083.33Y\\r\\n'\n+'DC512A100L25031201 클라이언트 SSD 512GB00000060000005083.33N\\r\\n'\n@@ -4 +4 @@\n-'T00000020000019                                             \\r\\n'\n+'T00000020000014                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "02_ms949_korean",
+      "description": "MS949 byte semantics. ADV operator names of 2..10 bytes (record = 140 BYTES, not chars); one ADV record\npadded by CHARACTERS (143 bytes) -> E01. TER operator names (UTF-8) cut to 10 MS949 bytes without\nsplitting a Hangul char (incl. a cut that keeps a trailing space). YIELD report PROD_NM cut to 20 bytes:\nexact fit, cut ending in space, ASCII cut, cut that would split a Hangul char (-> 19 bytes + 1 pad),\nshort name padded. ALERT csv with Korean product name in UTF-8.",
+      "passed": 11,
+      "total": 12,
+      "jobs": [
+        {
+          "line": "LOAD 20250313",
+          "rc": 0,
+          "seconds": 2.3
+        },
+        {
+          "line": "JUDGE 20250313",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250313",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -25,20 +25,20 @@\n-D250313T0001,FT1,20250313170800,20250313172300,20250313,L25031302,C1T0A200,TER-07,황보영수정,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0001,FT2,20250313190800,20250313192300,20250313,L25031302,C1T0A200,TER-07,황보영수정,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0002,FT1,20250313171600,20250313173100,20250313,L25031302,C1T0A200,TER-07,독고길동이,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0002,FT2,20250313191600,20250313193100,20250313,L25031302,C1T0A200,TER-07,독고길동이,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0003,FT1,20250313172400,20250313173900,20250313,L25031302,C1T0A200,TER-07,A홍길동전,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0003,FT2,20250313192400,20250313193900,20250313,L25031302,C1T0A200,TER-07,A홍길동전,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0004,FT1,20250313173200,20250313174700,20250313,L25031302,C1T0A200,TER-07,\"Lee \"\"Jay\"\"\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0004,FT2,20250313193200,20250313194700,20250313,L25031302,C1T0A200,TER-07,\"Lee \"\"Jay\"\"\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0005,FT1,20250313174000,20250313175500,20250313,L25031302,C1T0A200,TER-07,Kimberly A,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0005,FT2,20250313194000,20250313195500,20250313,L25031302,C1T0A200,TER-07,Kimberly A,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0006,FT1,20250313174800,20250313180300,20250313,L25031302,C1T0A200,TER-07,박서준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0006,FT2,20250313194800,20250313200300,20250313,L25031302,C1T0A200,TER-07,박서준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0007,FT1,20250313175600,20250313181100,20250313,L25031302,C1T0A200,TER-07,\"남궁 민수 \",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0007,FT2,20250313195600,20250313201100,20250313,L25031302,C1T0A200,TER-07,\"남궁 민수 \",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0008,FT1,20250313180400,20250313181900,20250313,L25031302,C1T0A200,TER-07,김,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0008,FT2,20250313200400,20250313201900,20250313,L25031302,C1T0A200,TER-07,김,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0009,FT1,20250313181200,20250313182700,20250313,L25031302,C1T0A200,TER-07,\"Park,Jisoo\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0009,FT2,20250313201200,20250313202700,20250313,L25031302,C1T0A200,TER-07,\"Park,Jisoo\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0010,FT1,20250313182000,20250313183500,20250313,L25031302,C1T0A200,TER-07,최고의작업,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n-D250313T0010,FT2,20250313202000,20250313203500,20250313,L25031302,C1T0A200,TER-07,최고의작업,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0001,FT1,20250313080800,20250313082300,20250313,L25031302,C1T0A200,TER-07,황보영수정,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0001,FT2,20250313100800,20250313102300,20250313,L25031302,C1T0A200,TER-07,황보영수정,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0002,FT1,20250313081600,20250313083100,20250313,L25031302,C1T0A200,TER-07,독고길동이,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0002,FT2,20250313101600,20250313103100,20250313,L25031302,C1T0A200,TER-07,독고길동이,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0003,FT1,20250313082400,20250313083900,20250313,L25031302,C1T0A200,TER-07,A홍길동전,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0003,FT2,20250313102400,20250313103900,20250313,L25031302,C1T0A200,TER-07,A홍길동전,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n+D250313T0004,FT1,20250313083200,20250313084700,20250313,L25031302,C1T0A200,TER-07,\"Lee \"\"Jay\"\"\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250313_01.csv\n... (truncated)",
+          "rows_expected": 43,
+          "rows_actual": 43,
+          "rows_matched": 23
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 26,
+          "rows_actual": 26,
+          "rows_matched": 26
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 5,
+          "rows_actual": 5,
+          "rows_matched": 5
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250313.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250313.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250313_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "03_ter_csv_format",
+      "description": "TER CSV parsing. File 01: UTF-8 BOM, CRLF, '#EOF,n' trailer, serial normalisation (SN prefix, lower case,\nspaces, '-'), SN+ES sample, quoted fields with comma and doubled quotes, all-quoted line, padded values,\nREAD/WRITE 2-decimal values rounded HALF_UP to 1 decimal. File 02: no BOM, LF, no trailer, blank line,\nTEMP_F -> C rounded HALF_UP (32.9 -> 1, 22.1 -> -6, 184.1 -> 85 = BIN6 where double maths gives 84).\nNon-matching inbox names (other date, 1-digit seq, lower case, .bak) must stay in inbox.",
+      "passed": 7,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250314",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "JUDGE 20250314",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250314",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,30 +2,30 @@\n-D250314C0001,FT1,20250314100600,20250314102100,20250314,L25031401,C1T0A200,TER-07,이서연,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0001,FT2,20250314120600,20250314122100,20250314,L25031401,C1T0A200,TER-07,이서연,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0002,FT1,20250314101200,20250314102700,20250314,L25031401,C1T0A200,TER-07,박지호,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0002,FT2,20250314121200,20250314122700,20250314,L25031401,C1T0A200,TER-07,박지호,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0003,FT1,20250314101800,20250314103300,20250314,L25031401,C1T0A200,TER-07,최수아,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0003,FT2,20250314121800,20250314123300,20250314,L25031401,C1T0A200,TER-07,최수아,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0004,FT1,20250314102400,20250314103900,20250314,L25031401,C1T0A200,TER-07,정우진,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0004,FT2,20250314122400,20250314123900,20250314,L25031401,C1T0A200,TER-07,정우진,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0006,FT1,20250314103600,20250314105100,20250314,L25031401,C1T0A200,TER-07,\"Kim, Minsu\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0006,FT2,20250314123600,20250314125100,20250314,L25031401,C1T0A200,TER-07,\"Kim, Minsu\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0007,FT1,20250314104200,20250314105700,20250314,L25031401,C1T0A200,TER-07,\"Lee \"\"Jay\"\"\",P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0007,FT2,20250314124200,20250314125700,20250314,L25031401,C1T0A200,TER-07,\"Lee \"\"Jay\"\"\",F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0008,FT1,20250314104800,20250314110300,20250314,L25031401,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0008,FT2,20250314124800,20250314130300,20250314,L25031401,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0009,FT1,20250314105400,20250314110900,20250314,L25031401,C1T0A200,TER-08,이서연,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0009,FT2,20250314125400,20250314130900,20250314,L25031401,C1T0A200,TER-08,이서연,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0010,FT1,20250314110000,20250314111500,20250314,L25031401,C1T0A200,TER-07,박지호,P,1700.3,1400.2,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314C0010,FT2,20250314130000,20250314131500,20250314,L25031401,C1T0A200,TER-07,박지호,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250314_01.csv\n-D250314E0001,FT1,20250314180700,20250314182200,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,72,SA21C05,TER,TER_20250314_02.csv\n-D250314E0002,FT1,20250314181400,20250314182900,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,1,SA21C05,TER,TER_20250314_02.csv\n-D250314E0003,FT1,20250314182100,20250314183600,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,-6,SA21C05,TER,TER_20250314_02.csv\n-D250314E0004,FT1,20250314182800,20250314184300,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,38,SA21C05,TER,TER_20250314_02.csv\n-D250314E0005,FT1,20250314183500,20250314185000,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,85,SA21C05,TER,TER_20250314_02.csv\n-D250314E0006,FT1,20250314184200,20250314185700,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,85,SA21C05,TER,TER_20250314_02.csv\n-D250314E0007,FT1,20250314184900,20250314190400,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,-20,SA21C05,TER,TER_20250314_02.csv\n-D250314E0008,FT1,20250314185600,20250314191100,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,85,SA21C05,TER,TER_20250314_02.csv\n-D250314E0009,FT1,20250314190300,20250314191800,20250314,L25031402,C512A100,TER-07,이서연,P,540,500,90,2,500,100,SA21C05,TER,TER_20250314_02.csv\n... (33 more diff lines)",
+          "rows_expected": 30,
+          "rows_actual": 30,
+          "rows_matched": 0
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,9 +1,0 @@\n-D250314C0001,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0002,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0003,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0004,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0006,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0007,20250314,C1T0A200,L25031401,7,DEFAULT_F,N\n-D250314C0008,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0009,20250314,C1T0A200,L25031401,1,DEFAULT,N\n-D250314C0010,20250314,C1T0A200,L25031401,1,DEFAULT,N\n@@ -21 +11,0 @@\n-ES2503140005,20250314,C1T0A200,L25031401,1,DEFAULT,Y",
+          "rows_expected": 20,
+          "rows_actual": 10,
+          "rows_matched": 10
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2 +1,0 @@\n-20250314,C1T0A200,L25031401,9,8,88.88,8,0,0,0,0,0,1,0,0,N",
+          "rows_expected": 2,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250314.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250314.txt",
+          "pass": false,
+          "diff": "size expected=248 actual=186, first difference at byte 25\n--- expected\n+++ actual\n@@ -1,2 +1 @@\n-'H20250314TLOGBATCH 0000002                                  \\r\\n'\n-'DC1T0A200L25031401 클라이언트 NVMe 1TB 00000090000008088.88N\\r\\n'\n+'H20250314TLOGBATCH 0000001                                  \\r\\n'\n@@ -4 +3 @@\n-'T00000020000014                                             \\r\\n'\n+'T00000010000006                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "04_reject_codes",
+      "description": "Every reject code incl. the undocumented E08 (invalid STEP) and the validation order for records with\nseveral errors (E01, E02, E08, E03, E04, E05, E06, then E07). ADV: short record, 140-char/143-byte record,\nunknown record type, blank/'SN--' serial, Feb 30, end < start, bad result, non-numeric/unsigned/space-padded\nnumbers, unknown and USE_YN='N' products, ' P' result (valid after trim), negative temperature.\nE09: ADV trailer count mismatch, ADV without trailer, TER '#EOF' mismatch (whole file rejected,\nTOTAL_CNT=REJ_CNT=detail count, one line '0|E09|<file>'). Files of other dates / .tmp stay in inbox.",
+      "passed": 11,
+      "total": 15,
+      "jobs": [
+        {
+          "line": "LOAD 20250316",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250316",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250316",
+          "rc": 0,
+          "seconds": 2.1
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -6,2 +6,2 @@\n-D250316Y0001,FT1,20250316140000,20250316141500,20250316,L25031602,C1T0A200,TER-07,Lee,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250316_01.csv\n-D250316Y0020,FT1,20250316140000,20250316141500,20250316,L25031602,C1T0A200,TER-07,Lee,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250316_01.csv\n+D250316Y0001,FT1,20250316050000,20250316051500,20250315,L25031602,C1T0A200,TER-07,Lee,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250316_01.csv\n+D250316Y0020,FT1,20250316050000,20250316051500,20250315,L25031602,C1T0A200,TER-07,Lee,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250316_01.csv",
+          "rows_expected": 6,
+          "rows_actual": 6,
+          "rows_matched": 4
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 5,
+          "rows_actual": 5,
+          "rows_matched": 5
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -6,2 +5,0 @@\n-D250316Y0001,20250316,C1T0A200,L25031602,1,DEFAULT,N\n-D250316Y0020,20250316,C1T0A200,L25031602,7,DEFAULT_F,N",
+          "rows_expected": 6,
+          "rows_actual": 4,
+          "rows_matched": 4
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2 +1,0 @@\n-20250316,C1T0A200,L25031602,2,1,50,1,0,0,0,0,0,1,0,0,N",
+          "rows_expected": 2,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250316.txt",
+          "pass": false,
+          "diff": "size expected=248 actual=186, first difference at byte 25\n--- expected\n+++ actual\n@@ -1,2 +1 @@\n-'H20250316TLOGBATCH 0000002                                  \\r\\n'\n-'DC1T0A200L25031602 클라이언트 NVMe 1TB 00000020000001050.00N\\r\\n'\n+'H20250316TLOGBATCH 0000001                                  \\r\\n'\n@@ -4 +3 @@\n-'T00000020000005                                             \\r\\n'\n+'T00000010000004                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_02.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_03.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250316_01.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250316_02.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "05_dup_policy",
+      "description": "Duplicate (SERIAL, STEP, START_DTM) handling with production policy LAST (overwrite):\nagainst rows already in TB_TEST_RESULT (seeded from an earlier load of ADV_20250317_01.dat),\ninside one file, across files of the same run (processing order = file name order: ADV_02, ADV_03, TER_01),\nand across vendors (TER UTC time == ADV KST time). DUP_CNT counts all duplicates (not in LOAD_CNT).\nCorrected values change JUDGE bins (FT2 F->P, READ 430 -> BIN3, ECC 6000 -> BIN2, P->F) and yield.",
+      "passed": 5,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250317",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250317",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250317",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -18 +18,2 @@\n-D250317D0006,BI,20250317103600,20250317105100,20250317,L25031701,C512A100,TER-07,조예준,P,540,500,90,2,6000,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0006,BI,20250317013600,20250317015100,20250316,L25031701,C512A100,TER-07,조예준,P,540,500,90,2,6000,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0006,BI,20250317103600,20250317105100,20250317,L25031701,C512A100,ADVT01,조예준,P,540,500,90,2,500,62,SA21C05,ADV,ADV_20250317_01.dat\n@@ -25,4 +26,5 @@\n-D250317D0009,FT1,20250317100000,20250317101500,20250317,L25031701,C512A100,TER-07,조예준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n-D250317D0010,BI,20250317180000,20250317181500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n-D250317D0010,FT1,20250317160000,20250317161500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n-D250317D0010,FT2,20250317210000,20250317211500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0009,FT1,20250317010000,20250317011500,20250316,L25031701,C512A100,TER-07,조예준,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0009,FT1,20250317100000,20250317101500,20250317,L25031701,C512A100,ADVT01,조예준,F,540,500,90,2,500,62,SA21C05,ADV,ADV_20250317_02.dat\n+D250317D0010,BI,20250317090000,20250317091500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0010,FT1,20250317070000,20250317071500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv\n+D250317D0010,FT2,20250317120000,20250317121500,20250317,L25031701,C512A100,TER-07,윤지유,P,540,500,90,2,500,62,SA21C05,TER,TER_20250317_01.csv",
+          "rows_expected": 27,
+          "rows_actual": 29,
+          "rows_matched": 22
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -5 +5 @@\n-TER_20250317_01.csv,TER,20250317,5,3,0,2,S\n+TER_20250317_01.csv,TER,20250317,5,5,0,0,S",
+          "rows_expected": 4,
+          "rows_actual": 4,
+          "rows_matched": 3
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -7 +7 @@\n-D250317D0006,20250317,C512A100,L25031701,2,R40_ECC_ALL,N\n+D250317D0006,20250317,C512A100,L25031701,1,DEFAULT,N\n@@ -10 +10 @@\n-D250317D0009,20250317,C512A100,L25031701,1,DEFAULT,N\n+D250317D0009,20250317,C512A100,L25031701,7,DEFAULT_F,N",
+          "rows_expected": 10,
+          "rows_actual": 10,
+          "rows_matched": 8
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2 +2 @@\n-20250317,C512A100,L25031701,10,6,60,5,1,1,0,0,0,3,0,0,Y\n+20250317,C512A100,L25031701,10,5,50,5,0,1,0,0,0,4,0,0,Y",
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 0
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250317.csv",
+          "pass": false,
+          "diff": "size expected=153 actual=153, first difference at byte 139\n--- expected\n+++ actual\n@@ -2 +2 @@\n-'20250317,C512A100,\"클라이언트 SSD 512GB 보급형\",L25031701,10,6,60.00,95.00\\n'\n+'20250317,C512A100,\"클라이언트 SSD 512GB 보급형\",L25031701,10,5,50.00,95.00\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250317.txt",
+          "pass": false,
+          "diff": "size expected=186 actual=186, first difference at byte 114\n--- expected\n+++ actual\n@@ -2,2 +2,2 @@\n-'DC512A100L25031701 클라이언트 SSD 512GB00000100000006060.00Y\\r\\n'\n-'T00000010000006                                             \\r\\n'\n+'DC512A100L25031701 클라이언트 SSD 512GB00000100000005050.00Y\\r\\n'\n+'T00000010000005                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "06_shift_boundary_tz",
+      "description": "WORK_DT = production day with 06:00 shift boundary in plant time (KST). ADV: 00:00:00, 05:59:59 -> previous\nday; 06:00:00, 23:59:59 -> same day; device split over two work days. TER (UTC): 20:59:59Z/21:00:00Z,\n15:00:00Z (= KST midnight), records whose UTC date differs from KST date, end crossing midnight.\nJUDGE and YIELD run for 0317, 0318, 0319. Only correct when UTC->KST conversion and WORK_DT derivation\nuse Asia/Seoul (JVM default TZ in production).",
+      "passed": 6,
+      "total": 12,
+      "jobs": [
+        {
+          "line": "LOAD 20250318",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250317",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250318",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250319",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250317",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250318",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250319",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 7
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -10,12 +10,12 @@\n-D250318W0011,FT1,20250318055959,20250318061459,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0012,FT1,20250318060000,20250318061500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0013,FT1,20250318000000,20250318001500,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0014,FT1,20250318235959,20250319001459,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0015,FT1,20250319000000,20250319001500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0016,FT1,20250319055959,20250319061459,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0017,FT1,20250319060000,20250319061500,20250319,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0018,FT1,20250318083000,20250318084500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0019,FT1,20250318235000,20250319002000,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0020,FT1,20250318091000,20250318092500,20250318,L25031802,C1T0A200,TER-07,김민준,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0020,FT2,20250318140000,20250318141500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n-D250318W0021,FT1,20250318120000,20250318121500,20250318,L25031802,C1T0A200,TER-07,김민준,P,390,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0011,FT1,20250317205959,20250317211459,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0012,FT1,20250317210000,20250317211500,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0013,FT1,20250317150000,20250317151500,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0014,FT1,20250318145959,20250318151459,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0015,FT1,20250318150000,20250318151500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0016,FT1,20250318205959,20250318211459,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0017,FT1,20250318210000,20250318211500,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0018,FT1,20250317233000,20250317234500,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0019,FT1,20250318145000,20250318152000,20250318,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0020,FT1,20250318001000,20250318002500,20250317,L25031802,C1T0A200,TER-07,김민준,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0020,FT2,20250318050000,20250318051500,20250317,L25031802,C1T0A200,TER-07,김민준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv\n+D250318W0021,FT1,20250318030000,20250318031500,20250317,L25031802,C1T0A200,TER-07,김민준,P,390,1400,80,3,900,66,NV31C12,TER,TER_20250318_01.csv",
+          "rows_expected": 20,
+          "rows_actual": 20,
+          "rows_matched": 8
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -11 +11 @@\n-D250318W0012,20250318,C1T0A200,L25031802,1,DEFAULT,N\n+D250318W0012,20250317,C1T0A200,L25031802,1,DEFAULT,N\n@@ -16,2 +16,2 @@\n-D250318W0017,20250319,C1T0A200,L25031802,1,DEFAULT,N\n-D250318W0018,20250318,C1T0A200,L25031802,1,DEFAULT,N\n+D250318W0017,20250318,C1T0A200,L25031802,1,DEFAULT,N\n+D250318W0018,20250317,C1T0A200,L25031802,1,DEFAULT,N\n@@ -19,2 +19,2 @@\n-D250318W0020,20250318,C1T0A200,L25031802,7,DEFAULT_F,N\n-D250318W0021,20250318,C1T0A200,L25031802,3,R30_READ_ALL,N\n+D250318W0020,20250317,C1T0A200,L25031802,7,DEFAULT_F,N\n+D250318W0021,20250317,C1T0A200,L25031802,3,R30_READ_ALL,N",
+          "rows_expected": 19,
+          "rows_actual": 19,
+          "rows_matched": 14
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -3 +3 @@\n-20250317,C1T0A200,L25031802,2,2,100,2,0,0,0,0,0,0,0,0,N\n+20250317,C1T0A200,L25031802,6,4,66.66,4,0,1,0,0,0,1,0,0,N\n@@ -5,2 +5 @@\n-20250318,C1T0A200,L25031802,8,6,75,6,0,1,0,0,0,1,0,0,N\n-20250319,C1T0A200,L25031802,1,1,100,1,0,0,0,0,0,0,0,0,N\n+20250318,C1T0A200,L25031802,5,5,100,5,0,0,0,0,0,0,0,0,N",
+          "rows_expected": 5,
+          "rows_actual": 4,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250317.txt",
+          "pass": false,
+          "diff": "size expected=248 actual=248, first difference at byte 169\n--- expected\n+++ actual\n@@ -3,2 +3,2 @@\n-'DC1T0A200L25031802 클라이언트 NVMe 1TB 00000020000002100.00N\\r\\n'\n-'T00000020000005                                             \\r\\n'\n+'DC1T0A200L25031802 클라이언트 NVMe 1TB 00000060000004066.66N\\r\\n'\n+'T00000020000007                                             \\r\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250318.txt",
+          "pass": false,
+          "diff": "size expected=248 actual=248, first difference at byte 169\n--- expected\n+++ actual\n@@ -3,2 +3,2 @@\n-'DC1T0A200L25031802 클라이언트 NVMe 1TB 00000080000006075.00N\\r\\n'\n-'T00000020000009                                             \\r\\n'\n+'DC1T0A200L25031802 클라이언트 NVMe 1TB 00000050000005100.00N\\r\\n'\n+'T00000020000008                                             \\r\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250319.txt",
+          "pass": false,
+          "diff": "size expected=186 actual=124, first difference at byte 25 (encoding looks like expected=cp949 actual=utf-8)\n--- expected\n+++ actual\n@@ -1,3 +1,2 @@\n-'H20250319TLOGBATCH 0000001                                  \\r\\n'\n-'DC1T0A200L25031802 클라이언트 NVMe 1TB 00000010000001100.00N\\r\\n'\n-'T00000010000001                                             \\r\\n'\n+'H20250319TLOGBATCH 0000000                                  \\r\\n'\n+'T00000000000000                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "07_retest_attempts",
+      "description": "Retest limit: per (SERIAL, STEP) only the first 3 attempts (by START_DTM) count, effective attempt =\nlast counted (design doc and Constants.MAX_RETEST say 5 - not used). Cases with 1..5 attempts, ignored\n4th/5th PASS/ABORT/bad READ, ABORT only when in the effective attempt, rules evaluated on effective\nattempts only, attempts interleaved across ADV and TER (ordering needs correct UTC->KST conversion).",
+      "passed": 6,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250319",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250319",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250319",
+          "rc": 0,
+          "seconds": 1.7
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -34,0 +35,2 @@\n+D250319R0012,FT1,20250319073000,20250319074500,20250319,L25031901,C1T0A200,TER-07,최수아,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n+D250319R0012,FT1,20250319083000,20250319084500,20250319,L25031901,C1T0A200,TER-07,최수아,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n@@ -36 +37,0 @@\n-D250319R0012,FT1,20250319163000,20250319164500,20250319,L25031901,C1T0A200,TER-07,최수아,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n@@ -38 +38,0 @@\n-D250319R0012,FT1,20250319173000,20250319174500,20250319,L25031901,C1T0A200,TER-07,최수아,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n@@ -46,2 +46,2 @@\n-D250319R0014,FT1,20250319090000,20250319091500,20250319,L25031901,C1T0A200,TER-07,조예준,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n-D250319R0014,FT1,20250319094000,20250319095500,20250319,L25031901,C1T0A200,TER-07,조예준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n+D250319R0014,FT1,20250319000000,20250319001500,20250318,L25031901,C1T0A200,TER-07,조예준,F,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv\n+D250319R0014,FT1,20250319004000,20250319005500,20250318,L25031901,C1T0A200,TER-07,조예준,P,1700,1400,80,3,900,66,NV31C12,TER,TER_20250319_01.csv",
+          "rows_expected": 46,
+          "rows_actual": 46,
+          "rows_matched": 42
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -13 +13 @@\n-D250319R0012,20250319,C1T0A200,L25031901,7,DEFAULT_F,N\n+D250319R0012,20250319,C1T0A200,L25031901,1,DEFAULT,N\n@@ -15 +14,0 @@\n-D250319R0014,20250319,C1T0A200,L25031901,1,DEFAULT,N",
+          "rows_expected": 14,
+          "rows_actual": 13,
+          "rows_matched": 12
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2 +2 @@\n-20250319,C1T0A200,L25031901,14,9,64.28,9,0,0,0,0,0,4,1,0,Y\n+20250319,C1T0A200,L25031901,13,9,69.23,9,0,0,0,0,0,3,1,0,Y",
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 0
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250319.csv",
+          "pass": false,
+          "diff": "size expected=152 actual=152, first difference at byte 136\n--- expected\n+++ actual\n@@ -2 +2 @@\n-'20250319,C1T0A200,\"클라이언트 NVMe 1TB 고성능\",L25031901,14,9,64.28,93.50\\n'\n+'20250319,C1T0A200,\"클라이언트 NVMe 1TB 고성능\",L25031901,13,9,69.23,93.50\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250319.txt",
+          "pass": false,
+          "diff": "size expected=186 actual=186, first difference at byte 107\n--- expected\n+++ actual\n@@ -2 +2 @@\n-'DC1T0A200L25031901 클라이언트 NVMe 1TB 00000140000009064.28Y\\r\\n'\n+'DC1T0A200L25031901 클라이언트 NVMe 1TB 00000130000009069.23Y\\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "08_rules_override",
+      "description": "BIN rule evaluation with a dedicated rule table: PRIORITY asc, product-specific before '*', BIN_NO desc;\nUSE_YN='N' ignored, unknown ITEM_CD skipped, rule for another product never applies; operators < <= > >=\nat exact thresholds; READ/WRITE use MIN over effective steps, LAT/BAD/ECC/TEMP use MAX. Hard-coded\nenterprise override (PROD_CD 'E%' and max BAD_BLK > 20 -> BIN5 OVR_E) runs BEFORE rules, ABORT before it.\nADV only (time-zone independent).",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250320",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250320",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250320",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 50,
+          "rows_actual": 50,
+          "rows_matched": 50
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 25,
+          "rows_actual": 25,
+          "rows_matched": 25
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250320.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250320.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "09_scrap_es",
+      "description": "Scrap stickiness: BIN 9 in TB_DEVICE_BIN for an EARLIER work day -> BIN9 SCRAP_KEEP (beats ABORT);\nBIN 9 on a later day or on the same day (re-judge) is not sticky; BIN 9 assigned by a rule today keeps\nthe rule id. Engineering samples (serial starts with 'ES' after normalisation, incl. TER 'SN-ES..' and\nlower case) are judged but EXCL_YN='Y' and excluded from yield; 'ES' inside a serial does not count;\na lot of only ES devices produces no yield row.",
+      "passed": 10,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250321",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250321",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250321",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -11,2 +11,2 @@\n-D250321S0009,FT1,20250321162000,20250321163500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n-D250321S0010,FT1,20250321163000,20250321164500,20250321,L25032101,C512A100,TER-07,Choi,F,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n+D250321S0009,FT1,20250321072000,20250321073500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n+D250321S0010,FT1,20250321073000,20250321074500,20250321,L25032101,C512A100,TER-07,Choi,F,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n@@ -16,2 +16,2 @@\n-ES2503210004,FT1,20250321160000,20250321161500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n-ES2503210005,FT1,20250321161000,20250321162500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n+ES2503210004,FT1,20250321070000,20250321071500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv\n+ES2503210005,FT1,20250321071000,20250321072500,20250321,L25032101,C512A100,TER-07,Choi,P,540,500,90,2,500,62,SA21C05,TER,TER_20250321_01.csv",
+          "rows_expected": 19,
+          "rows_actual": 19,
+          "rows_matched": 15
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 25,
+          "rows_actual": 25,
+          "rows_matched": 25
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250321.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250321.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "10_yield_trunc_alert",
+      "description": "YIELD_PCT is TRUNCATED to 2 decimals (code comment and design doc say rounding): 8/12 -> 66.66 (alert\nvs 66.67 threshold), 7/11 -> 63.63 (alert vs 63.64), 1/7 -> 14.28, 2/3, 1/3, 5/6, 0/12, 199/200 -> 099.50,\n15/15 -> 100.00. Alert only when YIELD < ALERT_YIELD (strict) and IN_QTY >= 10 (9 -> no alert, 10 -> alert);\nNULL ALERT_YIELD never alerts. BIN2 counts as pass (TB_BIN_CODE.PASS_YN). Report ordering by PROD_CD, LOT_ID.",
+      "passed": 10,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250322",
+          "rc": 0,
+          "seconds": 2.4
+        },
+        {
+          "line": "JUDGE 20250322",
+          "rc": 0,
+          "seconds": 2.5
+        },
+        {
+          "line": "YIELD 20250322",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -276,15 +276,15 @@\n-D25032210001,FT1,20250322170000,20250322170400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210002,FT1,20250322170200,20250322170600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210003,FT1,20250322170400,20250322170800,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210004,FT1,20250322170600,20250322171000,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210005,FT1,20250322170800,20250322171200,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210006,FT1,20250322171000,20250322171400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210007,FT1,20250322171200,20250322171600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210008,FT1,20250322171400,20250322171800,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210009,FT1,20250322171600,20250322172000,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210010,FT1,20250322171800,20250322172200,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210011,FT1,20250322172000,20250322172400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210012,FT1,20250322172200,20250322172600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210013,FT1,20250322172400,20250322172800,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210014,FT1,20250322172600,20250322173000,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n-D25032210015,FT1,20250322172800,20250322173200,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210001,FT1,20250322080000,20250322080400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210002,FT1,20250322080200,20250322080600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210003,FT1,20250322080400,20250322080800,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210004,FT1,20250322080600,20250322081000,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210005,FT1,20250322080800,20250322081200,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210006,FT1,20250322081000,20250322081400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210007,FT1,20250322081200,20250322081600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210008,FT1,20250322081400,20250322081800,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210009,FT1,20250322081600,20250322082000,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210010,FT1,20250322081800,20250322082200,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210011,FT1,20250322082000,20250322082400,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n+D25032210012,FT1,20250322082200,20250322082600,20250322,L25032210,C128T010,TER-07,강하은,P,520,450,95,1,300,60,SA20B03,TER,TER_20250322_01.csv\n... (3 more diff lines)",
+          "rows_expected": 298,
+          "rows_actual": 298,
+          "rows_matched": 283
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 298,
+          "rows_actual": 298,
+          "rows_matched": 298
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 12,
+          "rows_actual": 12,
+          "rows_matched": 12
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250322.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250322.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "11_rerun_noalert",
+      "description": "Re-run safety and ops contract: YIELD twice, late night-shift records (next day's file, WORK_DT of the\nprevious day) followed by JUDGE/YIELD re-run (MERGE updates, delete+insert, report overwritten, ALERT\nappears). No ALERT file when there are no alerts. YIELD on a day without data -> header/trailer only.\nInvalid calls must exit non-zero: impossible date, unknown JOB_ID, 7-digit date.",
+      "passed": 12,
+      "total": 13,
+      "jobs": [
+        {
+          "line": "LOAD 20250323",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "LOAD 20250324",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "JUDGE 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250324",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250324",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250325",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250230",
+          "rc": 1,
+          "seconds": 1.6
+        },
+        {
+          "line": "REPORT 20250323",
+          "rc": 1,
+          "seconds": 0.0
+        },
+        {
+          "line": "LOAD 2025032",
+          "rc": 1,
+          "seconds": 0.0
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 13
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,20 +2,20 @@\n-D250323M0001,FT1,20250323150500,20250323152000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0001,FT2,20250323170500,20250323172000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0002,FT1,20250323151000,20250323152500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0002,FT2,20250323171000,20250323172500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0003,FT1,20250323151500,20250323153000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0003,FT2,20250323171500,20250323173000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0004,FT1,20250323152000,20250323153500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0004,FT2,20250323172000,20250323173500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0005,FT1,20250323152500,20250323154000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0005,FT2,20250323172500,20250323174000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0006,FT1,20250323153000,20250323154500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0006,FT2,20250323173000,20250323174500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0007,FT1,20250323153500,20250323155000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0007,FT2,20250323173500,20250323175000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0008,FT1,20250323154000,20250323155500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0008,FT2,20250323174000,20250323175500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0009,FT1,20250323154500,20250323160000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0009,FT2,20250323174500,20250323180000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0010,FT1,20250323155000,20250323160500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n-D250323M0010,FT2,20250323175000,20250323180500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0001,FT1,20250323060500,20250323062000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0001,FT2,20250323080500,20250323082000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0002,FT1,20250323061000,20250323062500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0002,FT2,20250323081000,20250323082500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0003,FT1,20250323061500,20250323063000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0003,FT2,20250323081500,20250323083000,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n+D250323M0004,FT1,20250323062000,20250323063500,20250323,L25032302,E3840A01,TER-07,Kim,P,3200,2800,70,5,2000,68,EN40E07,TER,TER_20250323_01.csv\n... (13 more diff lines)",
+          "rows_expected": 48,
+          "rows_actual": 48,
+          "rows_matched": 28
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 3,
+          "rows_actual": 3,
+          "rows_matched": 3
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 26,
+          "rows_actual": 26,
+          "rows_matched": 26
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 3,
+          "rows_actual": 3,
+          "rows_matched": 3
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250323.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250323.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250324.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250325.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "12_full_day_mixed",
+      "description": "Production-like day (seeded random): 2 ADV + 2 TER files, ~140 devices in 5 lots / 4 products, retests up\nto 4 attempts, rule hits, aborts, ES samples, SN-prefixed TER serials, a few rejects, duplicates across\nfiles (LAST wins) and night-shift records belonging to the previous work day (JUDGE/YIELD for 0324 and 0325).",
+      "passed": 9,
+      "total": 16,
+      "jobs": [
+        {
+          "line": "LOAD 20250325",
+          "rc": 0,
+          "seconds": 2.6
+        },
+        {
+          "line": "JUDGE 20250324",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250325",
+          "rc": 0,
+          "seconds": 2.1
+        },
+        {
+          "line": "YIELD 20250324",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250325",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 5
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,6 +2,6 @@\n-D25032501001,BI,20250325161700,20250325163800,20250325,L25032501,C512A100,TER-07,정우진,P,532.4,513.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501001,FT1,20250325150900,20250325151800,20250325,L25032501,C512A100,TER-07,박지호,P,540,493.7,90,35,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501001,FT2,20250325170900,20250325172900,20250325,L25032501,C512A100,TER-07,윤지유,P,526.2,502.3,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501002,BI,20250325144500,20250325150200,20250325,L25032501,C512A100,TER-07,강하은,P,542.2,488.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501002,FT1,20250325135700,20250325142000,20250325,L25032501,C512A100,TER-07,강하은,P,529.4,497.1,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501002,FT2,20250325155200,20250325161400,20250325,L25032501,C512A100,TER-07,윤지유,P,545.2,505.3,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501001,BI,20250325071700,20250325073800,20250325,L25032501,C512A100,TER-07,정우진,P,532.4,513.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501001,FT1,20250325060900,20250325061800,20250325,L25032501,C512A100,TER-07,박지호,P,540,493.7,90,35,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501001,FT2,20250325080900,20250325082900,20250325,L25032501,C512A100,TER-07,윤지유,P,526.2,502.3,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501002,BI,20250325054500,20250325060200,20250324,L25032501,C512A100,TER-07,강하은,P,542.2,488.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501002,FT1,20250325045700,20250325052000,20250324,L25032501,C512A100,TER-07,강하은,P,529.4,497.1,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501002,FT2,20250325065200,20250325071400,20250325,L25032501,C512A100,TER-07,윤지유,P,545.2,505.3,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n@@ -11,3 +11,3 @@\n-D25032501004,BI,20250325150700,20250325151700,20250325,L25032501,C512A100,TER-07,최수아,P,553.3,494.1,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501004,FT1,20250325141400,20250325143200,20250325,L25032501,C512A100,TER-07,박지호,P,530.8,509.6,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501004,FT2,20250325154700,20250325161000,20250325,L25032501,C512A100,TER-07,조예준,P,533.4,506.6,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501004,BI,20250325060700,20250325061700,20250325,L25032501,C512A100,TER-07,최수아,P,553.3,494.1,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501004,FT1,20250325051400,20250325053200,20250324,L25032501,C512A100,TER-07,박지호,P,530.8,509.6,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n+D25032501004,FT2,20250325064700,20250325071000,20250325,L25032501,C512A100,TER-07,조예준,P,533.4,506.6,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n@@ -17,7 +17,7 @@\n-D25032501006,BI,20250325144000,20250325144900,20250325,L25032501,C512A100,TER-07,이서연,P,552,485.8,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501006,FT1,20250325131700,20250325132600,20250325,L25032501,C512A100,TER-07,정우진,F,552.6,494.5,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501006,FT1,20250325134200,20250325135400,20250325,L25032501,C512A100,TER-07,강하은,P,551.3,499.5,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501006,FT2,20250325152000,20250325152800,20250325,L25032501,C512A100,TER-07,김민준,P,547.9,493.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501007,BI,20250325170800,20250325172200,20250325,L25032501,C512A100,TER-07,윤지유,P,545.1,497.4,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501007,FT1,20250325162500,20250325164200,20250325,L25032501,C512A100,TER-07,조예준,P,538.7,501.2,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n-D25032501007,FT2,20250325173600,20250325174500,20250325,L25032501,C512A100,TER-07,윤지유,P,526.6,498.7,90,2,500,62,SA21C05,TER,TER_20250325_01.csv\n... (389 more diff lines)",
+          "rows_expected": 484,
+          "rows_actual": 484,
+          "rows_matched": 290
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 4,
+          "rows_actual": 4,
+          "rows_matched": 4
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,0 +3 @@\n+D25032501002,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -4,0 +6 @@\n+D25032501004,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -6,0 +9 @@\n+D25032501006,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -12,0 +16 @@\n+D25032501012,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -16 +20 @@\n-D25032501015,20250325,C512A100,L25032501,1,DEFAULT,N\n+D25032501015,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -23,2 +27,2 @@\n-D25032501022,20250325,C512A100,L25032501,1,DEFAULT,N\n-D25032501023,20250325,C512A100,L25032501,7,DEFAULT_F,N\n+D25032501022,20250324,C512A100,L25032501,1,DEFAULT,N\n+D25032501023,20250324,C512A100,L25032501,7,DEFAULT_F,N\n@@ -31 +35 @@\n-D25032501030,20250325,C512A100,L25032501,1,DEFAULT,N\n+D25032501030,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -33 +37 @@\n-D25032501032,20250325,C512A100,L25032501,1,DEFAULT,N\n+D25032501032,20250324,C512A100,L25032501,1,DEFAULT,N\n@@ -35 +39 @@\n-D25032501034,20250325,C512A100,L25032501,8,ABORT,N\n+D25032501034,20250324,C512A100,L25032501,8,ABORT,N\n@@ -37 +40,0 @@\n-D25032501035,20250325,C512A100,L25032501,1,DEFAULT,N\n@@ -41 +44 @@\n... (54 more diff lines)",
+          "rows_expected": 140,
+          "rows_actual": 146,
+          "rows_matched": 115
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": false,
+          "diff": "--- expected\n+++ actual\n@@ -2,6 +2,6 @@\n-20250324,C1T0A200,L25032502,1,0,0,0,0,0,0,0,0,1,0,0,N\n-20250324,C512A100,L25032501,2,1,50,1,0,0,0,0,0,0,1,0,N\n-20250324,E3840A01,L25032503,3,1,33.33,1,0,0,0,1,0,0,1,0,N\n-20250324,E7680B02,L25032504,3,3,100,3,0,0,0,0,0,0,0,0,N\n-20250325,C1T0A200,L25032502,32,23,71.87,23,0,0,0,2,0,6,1,0,Y\n-20250325,C512A100,L25032501,39,31,79.48,28,3,3,0,2,0,2,1,0,Y\n+20250324,C1T0A200,L25032502,7,4,57.14,4,0,0,0,0,0,2,1,0,N\n+20250324,C512A100,L25032501,13,10,76.92,10,0,0,0,0,0,1,2,0,Y\n+20250324,E3840A01,L25032503,11,7,63.63,6,1,0,0,1,0,1,2,0,Y\n+20250324,E7680B02,L25032504,8,7,87.5,7,0,0,0,0,0,1,0,0,N\n+20250325,C1T0A200,L25032502,26,19,73.07,19,0,0,0,2,0,5,0,0,Y\n+20250325,C512A100,L25032501,31,25,80.64,22,3,3,0,2,0,1,0,0,Y\n@@ -9,2 +9,2 @@\n-20250325,E3840A01,L25032503,26,22,84.61,21,1,0,0,0,1,2,1,0,Y\n-20250325,E7680B02,L25032504,22,19,86.36,19,0,0,0,0,0,3,0,0,Y\n+20250325,E3840A01,L25032503,20,18,90,18,0,0,0,0,1,1,0,0,Y\n+20250325,E7680B02,L25032504,18,15,83.33,15,0,0,0,0,0,3,0,0,Y",
+          "rows_expected": 9,
+          "rows_actual": 9,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": false,
+          "diff": "missing=[] extra=['ALERT_20250324.csv']"
+        },
+        {
+          "id": "outbox:ALERT_20250325.csv",
+          "pass": false,
+          "diff": "size expected=412 actual=412, first difference at byte 135\n--- expected\n+++ actual\n@@ -2,4 +2,4 @@\n-'20250325,C1T0A200,\"클라이언트 NVMe 1TB 고성능\",L25032502,32,23,71.87,93.50\\n'\n-'20250325,C512A100,\"클라이언트 SSD 512GB 보급형\",L25032501,39,31,79.48,95.00\\n'\n-'20250325,E3840A01,\"엔터프라이즈 NVMe SSD 3.84TB\",L25032503,26,22,84.61,97.00\\n'\n-'20250325,E7680B02,\"X 데이터센터용 고성능 드라이브\",L25032504,22,19,86.36,96.50\\n'\n+'20250325,C1T0A200,\"클라이언트 NVMe 1TB 고성능\",L25032502,26,19,73.07,93.50\\n'\n+'20250325,C512A100,\"클라이언트 SSD 512GB 보급형\",L25032501,31,25,80.64,95.00\\n'\n+'20250325,E3840A01,\"엔터프라이즈 NVMe SSD 3.84TB\",L25032503,20,18,90.00,97.00\\n'\n+'20250325,E7680B02,\"X 데이터센터용 고성능 드라이브\",L25032504,18,15,83.33,96.50\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250324.txt",
+          "pass": false,
+          "diff": "size expected=372 actual=372, first difference at byte 107\n--- expected\n+++ actual\n@@ -2,5 +2,5 @@\n-'DC1T0A200L25032502 클라이언트 NVMe 1TB 00000010000000000.00N\\r\\n'\n-'DC512A100L25032501 클라이언트 SSD 512GB00000020000001050.00N\\r\\n'\n-'DE3840A01L25032503 엔터프라이즈 NVMe SS00000030000001033.33N\\r\\n'\n-'DE7680B02L25032504 X 데이터센터용 고성 00000030000003100.00N\\r\\n'\n-'T00000040000005                                             \\r\\n'\n+'DC1T0A200L25032502 클라이언트 NVMe 1TB 00000070000004057.14N\\r\\n'\n+'DC512A100L25032501 클라이언트 SSD 512GB00000130000010076.92Y\\r\\n'\n+'DE3840A01L25032503 엔터프라이즈 NVMe SS00000110000007063.63Y\\r\\n'\n+'DE7680B02L25032504 X 데이터센터용 고성 00000080000007087.50N\\r\\n'\n+'T00000040000028                                             \\r\\n'"
+        },
+        {
+          "id": "outbox:YIELD_20250325.txt",
+          "pass": false,
+          "diff": "size expected=434 actual=434, first difference at byte 106\n--- expected\n+++ actual\n@@ -2,2 +2,2 @@\n-'DC1T0A200L25032502 클라이언트 NVMe 1TB 00000320000023071.87Y\\r\\n'\n-'DC512A100L25032501 클라이언트 SSD 512GB00000390000031079.48Y\\r\\n'\n+'DC1T0A200L25032502 클라이언트 NVMe 1TB 00000260000019073.07Y\\r\\n'\n+'DC512A100L25032501 클라이언트 SSD 512GB00000310000025080.64Y\\r\\n'\n@@ -5,3 +5,3 @@\n-'DE3840A01L25032503 엔터프라이즈 NVMe SS00000260000022084.61Y\\r\\n'\n-'DE7680B02L25032504 X 데이터센터용 고성 00000220000019086.36Y\\r\\n'\n-'T00000050000100                                             \\r\\n'\n+'DE3840A01L25032503 엔터프라이즈 NVMe SS00000200000018090.00Y\\r\\n'\n+'DE7680B02L25032504 X 데이터센터용 고성 00000180000015083.33Y\\r\\n'\n+'T00000050000082                                             \\r\\n'"
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250325_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250325_02.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250325_01.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250325_02.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    }
+  ],
+  "build": {
+    "skipped": true
+  },
+  "finished_at": "2026-10-14T17:13:18",
+  "totals": {
+    "checks_passed": 104,
+    "checks_total": 145,
+    "fixtures_passed": 1,
+    "fixtures_total": 12,
+    "pass_rate": 0.7172
+  }
+}

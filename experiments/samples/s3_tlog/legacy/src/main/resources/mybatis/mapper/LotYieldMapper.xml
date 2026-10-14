@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.dhsemi.tlog.mapper.LotYieldMapper">
+
+    <delete id="deleteLotYield" parameterType="string">
+        DELETE FROM TB_LOT_YIELD WHERE WORK_DT = #{workDt}
+    </delete>
+
+    <!-- LOT 별 BIN 집계 (ES 샘플 제외) -->
+    <select id="selectYieldBase" parameterType="string" resultType="LotYieldVO">
+        SELECT D.PROD_CD
+             , D.LOT_ID
+             , COUNT(*)                                            AS IN_QTY
+             , SUM(CASE WHEN C.PASS_YN = 'Y' THEN 1 ELSE 0 END)    AS PASS_QTY
+             , SUM(CASE WHEN D.BIN_NO = 1 THEN 1 ELSE 0 END)       AS BIN1_QTY
+             , SUM(CASE WHEN D.BIN_NO = 2 THEN 1 ELSE 0 END)       AS BIN2_QTY
+             , SUM(CASE WHEN D.BIN_NO = 3 THEN 1 ELSE 0 END)       AS BIN3_QTY
+             , SUM(CASE WHEN D.BIN_NO = 4 THEN 1 ELSE 0 END)       AS BIN4_QTY
+             , SUM(CASE WHEN D.BIN_NO = 5 THEN 1 ELSE 0 END)       AS BIN5_QTY
+             , SUM(CASE WHEN D.BIN_NO = 6 THEN 1 ELSE 0 END)       AS BIN6_QTY
+             , SUM(CASE WHEN D.BIN_NO = 7 THEN 1 ELSE 0 END)       AS BIN7_QTY
+             , SUM(CASE WHEN D.BIN_NO = 8 THEN 1 ELSE 0 END)       AS BIN8_QTY
+             , SUM(CASE WHEN D.BIN_NO = 9 THEN 1 ELSE 0 END)       AS BIN9_QTY
+          FROM TB_DEVICE_BIN D
+          LEFT OUTER JOIN TB_BIN_CODE C
+            ON C.BIN_NO = D.BIN_NO
+         WHERE D.WORK_DT = #{workDt}
+           AND D.EXCL_YN = 'N'
+         GROUP BY D.PROD_CD, D.LOT_ID
+         ORDER BY D.PROD_CD, D.LOT_ID
+    </select>
+
+    <insert id="insertLotYield" parameterType="LotYieldVO">
+        INSERT INTO TB_LOT_YIELD (
+            WORK_DT, PROD_CD, LOT_ID, IN_QTY, PASS_QTY, YIELD_PCT,
+            BIN1_QTY, BIN2_QTY, BIN3_QTY, BIN4_QTY, BIN5_QTY, BIN6_QTY, BIN7_QTY, BIN8_QTY, BIN9_QTY,
+            ALERT_YN, REG_DTM
+        ) VALUES (
+            #{workDt}, #{prodCd}, #{lotId}, #{inQty}, #{passQty}, #{yieldPct},
+            #{bin1Qty}, #{bin2Qty}, #{bin3Qty}, #{bin4Qty}, #{bin5Qty}, #{bin6Qty}, #{bin7Qty}, #{bin8Qty}, #{bin9Qty},
+            #{alertYn}, SYSDATE
+        )
+    </insert>
+
+    <!-- MES 리포트 (MyBatisCursorItemReader) -->
+    <select id="selectReportList" parameterType="map" resultType="LotYieldVO">
+        SELECT Y.WORK_DT, Y.PROD_CD, P.PROD_NM, Y.LOT_ID, Y.IN_QTY, Y.PASS_QTY, Y.YIELD_PCT, Y.ALERT_YN
+          FROM TB_LOT_YIELD Y
+          LEFT OUTER JOIN TB_PRODUCT P
+            ON P.PROD_CD = Y.PROD_CD
+         WHERE Y.WORK_DT = #{workDt}
+         ORDER BY Y.PROD_CD, Y.LOT_ID
+    </select>
+
+    <select id="countLotYield" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM TB_LOT_YIELD WHERE WORK_DT = #{workDt}
+    </select>
+
+    <select id="sumPassQty" parameterType="string" resultType="long">
+        SELECT NVL(SUM(PASS_QTY), 0) FROM TB_LOT_YIELD WHERE WORK_DT = #{workDt}
+    </select>
+
+    <select id="selectAlertList" parameterType="string" resultType="LotYieldVO">
+        SELECT Y.WORK_DT, Y.PROD_CD, P.PROD_NM, Y.LOT_ID, Y.IN_QTY, Y.PASS_QTY, Y.YIELD_PCT, P.ALERT_YIELD
+          FROM TB_LOT_YIELD Y
+          LEFT OUTER JOIN TB_PRODUCT P
+            ON P.PROD_CD = Y.PROD_CD
+         WHERE Y.WORK_DT  = #{workDt}
+           AND Y.ALERT_YN = 'Y'
+         ORDER BY Y.PROD_CD, Y.LOT_ID
+    </select>
+
+</mapper>

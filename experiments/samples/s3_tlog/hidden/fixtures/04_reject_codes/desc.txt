@@ -1,0 +1,6 @@
+Every reject code incl. the undocumented E08 (invalid STEP) and the validation order for records with
+several errors (E01, E02, E08, E03, E04, E05, E06, then E07). ADV: short record, 140-char/143-byte record,
+unknown record type, blank/'SN--' serial, Feb 30, end < start, bad result, non-numeric/unsigned/space-padded
+numbers, unknown and USE_YN='N' products, ' P' result (valid after trim), negative temperature.
+E09: ADV trailer count mismatch, ADV without trailer, TER '#EOF' mismatch (whole file rejected,
+TOTAL_CNT=REJ_CNT=detail count, one line '0|E09|<file>'). Files of other dates / .tmp stay in inbox.

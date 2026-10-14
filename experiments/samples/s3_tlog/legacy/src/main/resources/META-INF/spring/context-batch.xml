@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:batch="http://www.springframework.org/schema/batch"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
+           http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+
+    <!-- ================================================================ -->
+    <!--  Spring Batch 인프라                                               -->
+    <!-- ================================================================ -->
+
+    <!-- 메타 테이블 없으면 생성 (이미 있으면 오류 무시) -->
+    <jdbc:initialize-database data-source="dataSource" ignore-failures="ALL">
+        <jdbc:script location="classpath:org/springframework/batch/core/schema-h2.sql"/>
+    </jdbc:initialize-database>
+
+    <batch:job-repository id="jobRepository"
+                          data-source="dataSource"
+                          transaction-manager="transactionManager"
+                          isolation-level-for-create="READ_COMMITTED"
+                          table-prefix="BATCH_"/>
+
+    <bean id="jobLauncher" class="org.springframework.batch.core.launch.support.SimpleJobLauncher">
+        <property name="jobRepository" ref="jobRepository"/>
+    </bean>
+
+    <bean id="bizDateValidator" class="kr.co.dhsemi.tlog.common.BizDateValidator"/>
+
+    <bean id="jobLogListener" class="kr.co.dhsemi.tlog.common.listener.JobLogListener"/>
+    <bean id="stepLogListener" class="kr.co.dhsemi.tlog.common.listener.StepLogListener"/>
+
+</beans>

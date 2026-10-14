@@ -1,0 +1,5 @@
+Scrap stickiness: BIN 9 in TB_DEVICE_BIN for an EARLIER work day -> BIN9 SCRAP_KEEP (beats ABORT);
+BIN 9 on a later day or on the same day (re-judge) is not sticky; BIN 9 assigned by a rule today keeps
+the rule id. Engineering samples (serial starts with 'ES' after normalisation, incl. TER 'SN-ES..' and
+lower case) are judged but EXCL_YN='Y' and excluded from yield; 'ES' inside a serial does not count;
+a lot of only ES devices produces no yield row.

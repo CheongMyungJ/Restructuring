@@ -11,7 +11,7 @@ Exit codes: 0 done/ok, 10 waiting for human answers, 1 error.
 """
 import argparse, json, os, shutil, sys
 
-from .pipeline import Pipeline, PHASES, NEEDS_HUMAN, DEFAULT_CONFIG
+from .pipeline import Pipeline, PHASES, NEEDS_HUMAN, DEFAULT_CONFIG, PRESETS
 from .questions import QuestionStore, ask_terminal
 from .util import read_json, write_json, write_text
 
@@ -42,6 +42,13 @@ def cmd_init(a):
             sys.exit(f"경로가 없습니다: {c['path']}")
     if a.lang:
         cfg['language'] = a.lang
+    preset = PRESETS[a.preset]
+    cfg['preset'] = a.preset
+    cfg['models'] = dict(preset['models'])
+    for k in ('unit_tokens', 'characterize', 'review'):
+        cfg[k] = preset[k]
+    if a.budget:
+        cfg['max_cost_usd'] = a.budget
     write_json(os.path.join(ws, 'rekit.json'), cfg)
     os.makedirs(os.path.join(ws, '.rekit'), exist_ok=True)
     intake = ['# Intake (사람이 제공한 사전 정보)', '']
@@ -138,6 +145,10 @@ def _cmd_run(a, ws):
         n = len(store.pending(tuple(p.cfg['gate_priorities'])))
         print(f'\n[대기] 사람의 확인이 필요한 질문 {n}개. `rekit answer {ws}` 로 답한 뒤 `rekit run {ws}` 를 다시 실행하세요.')
         return NEEDS_HUMAN
+    if not all(p.phase_done(ph) for ph in PHASES):
+        nxt = next(ph for ph in PHASES if not p.phase_done(ph))
+        print(f"\n[일시정지] '{a.until or nxt}' 단계까지 실행했습니다. 다음 단계: {nxt}. 계속하려면: rekit run {ws}")
+        return 0
     cov = p.coverage() if os.path.exists(os.path.join(ws, '.rekit', 'inventory.json')) else {}
     print(f"\n[완료] 키트: {os.path.join(ws, 'kit')}  누적 비용 ${p.total_cost()}  "
           f"파일 커버리지 {cov.get('files_referenced')}/{cov.get('files_total')}, 심볼 {cov.get('symbols_referenced')}/{cov.get('symbols_total')}")
@@ -264,6 +275,9 @@ def main(argv=None):
     s = sub.add_parser('init'); s.add_argument('workspace'); s.add_argument('--code', action='append', required=True)
     s.add_argument('--materials', action='append'); s.add_argument('--name'); s.add_argument('--lang')
     s.add_argument('--no-intake', action='store_true'); s.add_argument('--intake-json')
+    s.add_argument('--preset', choices=sorted(PRESETS), default='balanced',
+                   help='max: 최고 정밀(Opus·작은 단위) / balanced: 기본 / economy: 저비용(Sonnet)')
+    s.add_argument('--budget', type=float, help='비용 상한(USD). 넘으면 멈추고 재개 가능')
     s.set_defaults(fn=cmd_init)
     s = sub.add_parser('run'); s.add_argument('workspace', nargs='?'); s.add_argument('--until', choices=PHASES)
     s.add_argument('--human', choices=['interactive', 'file', 'oracle', 'none']); s.add_argument('--oracle')

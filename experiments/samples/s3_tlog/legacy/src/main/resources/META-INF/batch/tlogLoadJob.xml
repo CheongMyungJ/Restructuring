@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:batch="http://www.springframework.org/schema/batch"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+    <import resource="classpath:META-INF/spring/context-common.xml"/>
+    <import resource="classpath:META-INF/spring/context-batch.xml"/>
+
+    <!-- ================================================================ -->
+    <!--  LOAD : 장비 로그 파일 적재                                         -->
+    <!--   1) 파일 스캔/트레일러 검증  2) 레코드 적재  3) 이력/아카이브        -->
+    <!-- ================================================================ -->
+    <batch:job id="tlogLoadJob" restartable="false">
+        <batch:validator ref="bizDateValidator"/>
+
+        <batch:step id="loadScanStep" next="loadRecordStep">
+            <batch:tasklet ref="fileScanTasklet" transaction-manager="transactionManager"/>
+        </batch:step>
+
+        <batch:step id="loadRecordStep" next="loadArchiveStep">
+            <batch:tasklet transaction-manager="transactionManager">
+                <batch:chunk reader="tlogRecordReader"
+                             processor="testResultProcessor"
+                             writer="testResultWriter"
+                             commit-interval="${load.commit.interval}"/>
+                <batch:listeners>
+                    <batch:listener ref="stepLogListener"/>
+                </batch:listeners>
+            </batch:tasklet>
+        </batch:step>
+
+        <batch:step id="loadArchiveStep">
+            <batch:tasklet ref="fileArchiveTasklet" transaction-manager="transactionManager"/>
+        </batch:step>
+
+        <batch:listeners>
+            <batch:listener ref="jobLogListener"/>
+        </batch:listeners>
+    </batch:job>
+
+    <bean id="fileScanTasklet" class="kr.co.dhsemi.tlog.load.FileScanTasklet" scope="step">
+        <property name="bizDate" value="#{jobParameters['BIZ_DATE']}"/>
+    </bean>
+
+    <bean id="tlogRecordReader" class="kr.co.dhsemi.tlog.load.TlogRecordReader" scope="step"/>
+
+    <bean id="testResultProcessor" class="kr.co.dhsemi.tlog.load.TestResultProcessor"/>
+
+    <bean id="testResultWriter" class="kr.co.dhsemi.tlog.load.TestResultWriter"/>
+
+    <bean id="fileArchiveTasklet" class="kr.co.dhsemi.tlog.load.FileArchiveTasklet" scope="step">
+        <property name="bizDate" value="#{jobParameters['BIZ_DATE']}"/>
+        <property name="fileLogDao" ref="fileLogDao"/>
+    </bean>
+
+</beans>

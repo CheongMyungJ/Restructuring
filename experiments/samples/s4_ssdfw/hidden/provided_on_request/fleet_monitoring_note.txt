@@ -1,0 +1,10 @@
+[메일 발췌] 2018.08.21  고객지원팀 -> FW개발팀
+제목: S4 SMART 값 변경 관련 고객 알람 건 (재발 방지)
+
+- 7월 배포한 시험 FW(4.1.07-test)에서 Data Units Written 을 NVMe spec 대로 올림 처리하고,
+  Percentage Used 를 100 에서 자르도록 수정한 결과, 고객사 fleet monitoring 에서
+  "SMART counter discontinuity" 알람이 약 1.2만 대에서 발생함.
+- 고객 모니터링은 S4 출하 초기부터의 값(512B 누적 / 1000 내림, percentage used 255 saturate)을
+  baseline 으로 사용하고 있음. 고객 요청: 계산 방식 절대 변경 금지.
+- 조치: 4.1.08 에서 원복. 이후 SMART 계산 로직 변경 시 고객지원팀 사전 협의 필수.
+- 참고: spec 위반 여부와 무관하게 "기존 동작 유지" 가 고객 계약 조건임.

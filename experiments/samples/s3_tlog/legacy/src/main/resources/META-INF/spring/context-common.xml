@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- ================================================================ -->
+    <!--  TLOG 공통 : DataSource / Transaction / MyBatis                    -->
+    <!-- ================================================================ -->
+
+    <context:property-placeholder location="classpath:tlog.properties"/>
+
+    <context:annotation-config/>
+    <context:component-scan base-package="kr.co.dhsemi.tlog"/>
+
+    <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <property name="initialSize" value="${jdbc.initialSize}"/>
+        <property name="maxTotal" value="${jdbc.maxTotal}"/>
+        <!-- <property name="validationQuery" value="SELECT 1 FROM DUAL"/> -->
+        <!-- <property name="testOnBorrow" value="true"/> -->
+    </bean>
+
+    <!-- WAS 배포 시절 설정 (2016 이전)
+    <bean id="dataSource" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiName" value="java:comp/env/jdbc/tlog"/>
+    </bean>
+    -->
+
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- MyBatis -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis/mybatis-config.xml"/>
+        <property name="mapperLocations" value="classpath*:mybatis/mapper/*.xml"/>
+    </bean>
+
+    <!--
+        2019.11 leedw : 배치 Reader 전용 SqlSessionFactory
+        MyBatisPagingItemReader 는 BATCH executor 고정이라 같은 트랜잭션에서 processor/writer 의
+        Mapper(SIMPLE) 호출과 충돌함 (Cannot change the ExecutorType ...) -> factory 를 분리
+    -->
+    <bean id="sqlSessionFactoryReader" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis/mybatis-config.xml"/>
+        <property name="mapperLocations" value="classpath*:mybatis/mapper/*.xml"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="kr.co.dhsemi.tlog.mapper"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+
+    <!-- 구 DAO (JdbcTemplate) -->
+    <bean id="fileLogDao" class="kr.co.dhsemi.tlog.dao.FileLogDao">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+</beans>

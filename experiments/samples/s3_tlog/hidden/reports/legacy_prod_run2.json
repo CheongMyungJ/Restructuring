@@ -1,0 +1,1138 @@
+{
+  "harness_version": "1.0",
+  "app_dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/samples/s3_tlog/legacy",
+  "java_opts": "-Duser.timezone=Asia/Seoul -Dtlog.dup.policy=LAST",
+  "started_at": "2026-10-14T17:07:51",
+  "work_dir": null,
+  "fixtures": [
+    {
+      "name": "01_basic_flow",
+      "description": "Basic end-to-end day: 1 ADV + 1 TER file, LOAD -> JUDGE -> YIELD.\nLot L25031201 (C512A100, 12 dev: 6 ADV + 6 TER whose KST times are before 15:00, i.e. UTC 23:xx-04:xx),\nlot L25031202 (E3840A01, 10 dev). Rules R30_READ_C512 (BIN3), R40_LAT_E384 (BIN2 = pass bin),\nR20_TEMP_HI (BIN6), FT2 FAIL -> DEFAULT_F. Both lots alert (83.33 < 95, 90.00 < 97).",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250312",
+          "rc": 0,
+          "seconds": 2.3
+        },
+        {
+          "line": "JUDGE 20250312",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "YIELD 20250312",
+          "rc": 0,
+          "seconds": 2.0
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 66,
+          "rows_actual": 66,
+          "rows_matched": 66
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 22,
+          "rows_actual": 22,
+          "rows_matched": 22
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250312.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250312.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "02_ms949_korean",
+      "description": "MS949 byte semantics. ADV operator names of 2..10 bytes (record = 140 BYTES, not chars); one ADV record\npadded by CHARACTERS (143 bytes) -> E01. TER operator names (UTF-8) cut to 10 MS949 bytes without\nsplitting a Hangul char (incl. a cut that keeps a trailing space). YIELD report PROD_NM cut to 20 bytes:\nexact fit, cut ending in space, ASCII cut, cut that would split a Hangul char (-> 19 bytes + 1 pad),\nshort name padded. ALERT csv with Korean product name in UTF-8.",
+      "passed": 12,
+      "total": 12,
+      "jobs": [
+        {
+          "line": "LOAD 20250313",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250313",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "YIELD 20250313",
+          "rc": 0,
+          "seconds": 2.2
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 43,
+          "rows_actual": 43,
+          "rows_matched": 43
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 26,
+          "rows_actual": 26,
+          "rows_matched": 26
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 5,
+          "rows_actual": 5,
+          "rows_matched": 5
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250313.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250313.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250313_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "03_ter_csv_format",
+      "description": "TER CSV parsing. File 01: UTF-8 BOM, CRLF, '#EOF,n' trailer, serial normalisation (SN prefix, lower case,\nspaces, '-'), SN+ES sample, quoted fields with comma and doubled quotes, all-quoted line, padded values,\nREAD/WRITE 2-decimal values rounded HALF_UP to 1 decimal. File 02: no BOM, LF, no trailer, blank line,\nTEMP_F -> C rounded HALF_UP (32.9 -> 1, 22.1 -> -6, 184.1 -> 85 = BIN6 where double maths gives 84).\nNon-matching inbox names (other date, 1-digit seq, lower case, .bak) must stay in inbox.",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250314",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250314",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250314",
+          "rc": 0,
+          "seconds": 2.2
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 30,
+          "rows_actual": 30,
+          "rows_matched": 30
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 20,
+          "rows_actual": 20,
+          "rows_matched": 20
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250314.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250314.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "04_reject_codes",
+      "description": "Every reject code incl. the undocumented E08 (invalid STEP) and the validation order for records with\nseveral errors (E01, E02, E08, E03, E04, E05, E06, then E07). ADV: short record, 140-char/143-byte record,\nunknown record type, blank/'SN--' serial, Feb 30, end < start, bad result, non-numeric/unsigned/space-padded\nnumbers, unknown and USE_YN='N' products, ' P' result (valid after trim), negative temperature.\nE09: ADV trailer count mismatch, ADV without trailer, TER '#EOF' mismatch (whole file rejected,\nTOTAL_CNT=REJ_CNT=detail count, one line '0|E09|<file>'). Files of other dates / .tmp stay in inbox.",
+      "passed": 15,
+      "total": 15,
+      "jobs": [
+        {
+          "line": "LOAD 20250316",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "JUDGE 20250316",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250316",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 6,
+          "rows_actual": 6,
+          "rows_matched": 6
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 5,
+          "rows_actual": 5,
+          "rows_matched": 5
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 6,
+          "rows_actual": 6,
+          "rows_matched": 6
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250316.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_02.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250316_03.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250316_01.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250316_02.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "05_dup_policy",
+      "description": "Duplicate (SERIAL, STEP, START_DTM) handling with production policy LAST (overwrite):\nagainst rows already in TB_TEST_RESULT (seeded from an earlier load of ADV_20250317_01.dat),\ninside one file, across files of the same run (processing order = file name order: ADV_02, ADV_03, TER_01),\nand across vendors (TER UTC time == ADV KST time). DUP_CNT counts all duplicates (not in LOAD_CNT).\nCorrected values change JUDGE bins (FT2 F->P, READ 430 -> BIN3, ECC 6000 -> BIN2, P->F) and yield.",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250317",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250317",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250317",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 27,
+          "rows_actual": 27,
+          "rows_matched": 27
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 4,
+          "rows_actual": 4,
+          "rows_matched": 4
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 10,
+          "rows_actual": 10,
+          "rows_matched": 10
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250317.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250317.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "06_shift_boundary_tz",
+      "description": "WORK_DT = production day with 06:00 shift boundary in plant time (KST). ADV: 00:00:00, 05:59:59 -> previous\nday; 06:00:00, 23:59:59 -> same day; device split over two work days. TER (UTC): 20:59:59Z/21:00:00Z,\n15:00:00Z (= KST midnight), records whose UTC date differs from KST date, end crossing midnight.\nJUDGE and YIELD run for 0317, 0318, 0319. Only correct when UTC->KST conversion and WORK_DT derivation\nuse Asia/Seoul (JVM default TZ in production).",
+      "passed": 12,
+      "total": 12,
+      "jobs": [
+        {
+          "line": "LOAD 20250318",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250317",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250318",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250319",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250317",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "YIELD 20250318",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "YIELD 20250319",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 7
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 20,
+          "rows_actual": 20,
+          "rows_matched": 20
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 19,
+          "rows_actual": 19,
+          "rows_matched": 19
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 5,
+          "rows_actual": 5,
+          "rows_matched": 5
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250317.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250318.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250319.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "07_retest_attempts",
+      "description": "Retest limit: per (SERIAL, STEP) only the first 3 attempts (by START_DTM) count, effective attempt =\nlast counted (design doc and Constants.MAX_RETEST say 5 - not used). Cases with 1..5 attempts, ignored\n4th/5th PASS/ABORT/bad READ, ABORT only when in the effective attempt, rules evaluated on effective\nattempts only, attempts interleaved across ADV and TER (ordering needs correct UTC->KST conversion).",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250319",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250319",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250319",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 46,
+          "rows_actual": 46,
+          "rows_matched": 46
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 14,
+          "rows_actual": 14,
+          "rows_matched": 14
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250319.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250319.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "08_rules_override",
+      "description": "BIN rule evaluation with a dedicated rule table: PRIORITY asc, product-specific before '*', BIN_NO desc;\nUSE_YN='N' ignored, unknown ITEM_CD skipped, rule for another product never applies; operators < <= > >=\nat exact thresholds; READ/WRITE use MIN over effective steps, LAT/BAD/ECC/TEMP use MAX. Hard-coded\nenterprise override (PROD_CD 'E%' and max BAD_BLK > 20 -> BIN5 OVR_E) runs BEFORE rules, ABORT before it.\nADV only (time-zone independent).",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250320",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250320",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250320",
+          "rc": 0,
+          "seconds": 2.0
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 50,
+          "rows_actual": 50,
+          "rows_matched": 50
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 25,
+          "rows_actual": 25,
+          "rows_matched": 25
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250320.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250320.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "09_scrap_es",
+      "description": "Scrap stickiness: BIN 9 in TB_DEVICE_BIN for an EARLIER work day -> BIN9 SCRAP_KEEP (beats ABORT);\nBIN 9 on a later day or on the same day (re-judge) is not sticky; BIN 9 assigned by a rule today keeps\nthe rule id. Engineering samples (serial starts with 'ES' after normalisation, incl. TER 'SN-ES..' and\nlower case) are judged but EXCL_YN='Y' and excluded from yield; 'ES' inside a serial does not count;\na lot of only ES devices produces no yield row.",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250321",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "JUDGE 20250321",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250321",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 19,
+          "rows_actual": 19,
+          "rows_matched": 19
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 25,
+          "rows_actual": 25,
+          "rows_matched": 25
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 1,
+          "rows_actual": 1,
+          "rows_matched": 1
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250321.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250321.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "10_yield_trunc_alert",
+      "description": "YIELD_PCT is TRUNCATED to 2 decimals (code comment and design doc say rounding): 8/12 -> 66.66 (alert\nvs 66.67 threshold), 7/11 -> 63.63 (alert vs 63.64), 1/7 -> 14.28, 2/3, 1/3, 5/6, 0/12, 199/200 -> 099.50,\n15/15 -> 100.00. Alert only when YIELD < ALERT_YIELD (strict) and IN_QTY >= 10 (9 -> no alert, 10 -> alert);\nNULL ALERT_YIELD never alerts. BIN2 counts as pass (TB_BIN_CODE.PASS_YN). Report ordering by PROD_CD, LOT_ID.",
+      "passed": 11,
+      "total": 11,
+      "jobs": [
+        {
+          "line": "LOAD 20250322",
+          "rc": 0,
+          "seconds": 2.2
+        },
+        {
+          "line": "JUDGE 20250322",
+          "rc": 0,
+          "seconds": 2.9
+        },
+        {
+          "line": "YIELD 20250322",
+          "rc": 0,
+          "seconds": 1.8
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 3
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 298,
+          "rows_actual": 298,
+          "rows_matched": 298
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 2,
+          "rows_actual": 2,
+          "rows_matched": 2
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 298,
+          "rows_actual": 298,
+          "rows_matched": 298
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 12,
+          "rows_actual": 12,
+          "rows_matched": 12
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250322.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250322.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "11_rerun_noalert",
+      "description": "Re-run safety and ops contract: YIELD twice, late night-shift records (next day's file, WORK_DT of the\nprevious day) followed by JUDGE/YIELD re-run (MERGE updates, delete+insert, report overwritten, ALERT\nappears). No ALERT file when there are no alerts. YIELD on a day without data -> header/trailer only.\nInvalid calls must exit non-zero: impossible date, unknown JOB_ID, 7-digit date.",
+      "passed": 13,
+      "total": 13,
+      "jobs": [
+        {
+          "line": "LOAD 20250323",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "LOAD 20250324",
+          "rc": 0,
+          "seconds": 1.8
+        },
+        {
+          "line": "JUDGE 20250323",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "YIELD 20250323",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "JUDGE 20250324",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250324",
+          "rc": 0,
+          "seconds": 1.7
+        },
+        {
+          "line": "YIELD 20250325",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250230",
+          "rc": 1,
+          "seconds": 1.5
+        },
+        {
+          "line": "REPORT 20250323",
+          "rc": 1,
+          "seconds": 0.0
+        },
+        {
+          "line": "LOAD 2025032",
+          "rc": 1,
+          "seconds": 0.0
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 13
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 48,
+          "rows_actual": 48,
+          "rows_matched": 48
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 3,
+          "rows_actual": 3,
+          "rows_matched": 3
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 26,
+          "rows_actual": 26,
+          "rows_matched": 26
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 3,
+          "rows_actual": 3,
+          "rows_matched": 3
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250323.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250323.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250324.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250325.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "name": "12_full_day_mixed",
+      "description": "Production-like day (seeded random): 2 ADV + 2 TER files, ~140 devices in 5 lots / 4 products, retests up\nto 4 attempts, rule hits, aborts, ES samples, SN-prefixed TER serials, a few rejects, duplicates across\nfiles (LAST wins) and night-shift records belonging to the previous work day (JUDGE/YIELD for 0324 and 0325).",
+      "passed": 16,
+      "total": 16,
+      "jobs": [
+        {
+          "line": "LOAD 20250325",
+          "rc": 0,
+          "seconds": 2.5
+        },
+        {
+          "line": "JUDGE 20250324",
+          "rc": 0,
+          "seconds": 1.9
+        },
+        {
+          "line": "JUDGE 20250325",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250324",
+          "rc": 0,
+          "seconds": 2.0
+        },
+        {
+          "line": "YIELD 20250325",
+          "rc": 0,
+          "seconds": 1.9
+        }
+      ],
+      "checks": [
+        {
+          "id": "exit:codes",
+          "pass": true,
+          "jobs": 5
+        },
+        {
+          "id": "table:TB_TEST_RESULT",
+          "pass": true,
+          "rows_expected": 484,
+          "rows_actual": 484,
+          "rows_matched": 484
+        },
+        {
+          "id": "table:TB_FILE_LOG",
+          "pass": true,
+          "rows_expected": 4,
+          "rows_actual": 4,
+          "rows_matched": 4
+        },
+        {
+          "id": "table:TB_DEVICE_BIN",
+          "pass": true,
+          "rows_expected": 140,
+          "rows_actual": 140,
+          "rows_matched": 140
+        },
+        {
+          "id": "table:TB_LOT_YIELD",
+          "pass": true,
+          "rows_expected": 9,
+          "rows_actual": 9,
+          "rows_matched": 9
+        },
+        {
+          "id": "outbox:files",
+          "pass": true
+        },
+        {
+          "id": "outbox:ALERT_20250325.csv",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250324.txt",
+          "pass": true
+        },
+        {
+          "id": "outbox:YIELD_20250325.txt",
+          "pass": true
+        },
+        {
+          "id": "reject:files",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250325_01.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:ADV_20250325_02.dat.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250325_01.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "reject:TER_20250325_02.csv.rej",
+          "pass": true
+        },
+        {
+          "id": "archive:listing",
+          "pass": true
+        },
+        {
+          "id": "inbox:listing",
+          "pass": true
+        }
+      ]
+    }
+  ],
+  "build": {
+    "skipped": false,
+    "rc": 0,
+    "seconds": 4.0
+  },
+  "finished_at": "2026-10-14T17:09:44",
+  "totals": {
+    "checks_passed": 145,
+    "checks_total": 145,
+    "fixtures_passed": 12,
+    "fixtures_total": 12,
+    "pass_rate": 1.0
+  }
+}

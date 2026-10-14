@@ -1,0 +1,49 @@
+# NFL build (legacy)
+CC = $(CROSS_COMPILE)gcc
+NFL_CFLAGS = $(CFLAGS) -O1 -Wall -ggdb -I.
+TESTS = \
+    tests/error.test \
+    tests/nand.test \
+    tests/journal.test \
+    tests/recovery.test \
+    tests/jfill.test \
+    tests/map.test \
+    tests/epoch_roll.test
+
+all: $(TESTS)
+
+test: $(TESTS)
+	@@for x in $(TESTS); do echo $$x; ./$$x > /dev/null || exit 255; done
+
+%.o: %.c
+	$(CC) $(NFL_CFLAGS) -o $*.o -c $*.c
+
+tests/error.test: nfl/error.o tests/error.o
+	$(CC) -o $@ $^
+
+tests/nand.test: nfl/error.o tests/nand.o tests/sim.o tests/util.o
+	$(CC) -o $@ $^
+
+tests/journal.test: nfl/journal.o tests/journal.o tests/sim.o tests/util.o \
+		    nfl/error.o tests/jtutil.o
+	$(CC) -o $@ $^
+
+tests/recovery.test: nfl/journal.o tests/recovery.o tests/sim.o tests/util.o \
+		     nfl/error.o tests/jtutil.o
+	$(CC) -o $@ $^
+
+tests/jfill.test: nfl/journal.o tests/jfill.o tests/sim.o nfl/error.o \
+		  tests/util.o tests/jtutil.o
+	$(CC) -o $@ $^
+
+tests/map.test: nfl/map.o nfl/journal.o nfl/error.o tests/map.o \
+		tests/sim.o tests/util.o
+	$(CC) -o $@ $^
+
+tests/epoch_roll.test: nfl/map.o nfl/journal.o nfl/error.o \
+		       tests/epoch_roll.o tests/sim.o tests/util.o
+	$(CC) -o $@ $^
+
+clean:
+	rm -f */*.o
+	rm -f */*.test

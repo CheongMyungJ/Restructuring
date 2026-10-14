@@ -5,3 +5,4 @@ rekit-work/
 experiments/_work/
 *.o
 *.a
+experiments/samples/**/target/

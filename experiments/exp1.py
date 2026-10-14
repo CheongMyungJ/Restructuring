@@ -68,8 +68,14 @@ def run_gen(sample, method, model='opus', prompt_file=None):
     return s
 
 
+def run_dir(sample, variant, rep, kit_method='kitgen_v1'):
+    """Kit-based variants include the kit method in the path so different kits never share (or delete) a run dir."""
+    vdir = variant if variant in ('V0', 'V1') or kit_method == 'kitgen_v1' else f'{variant}@{kit_method}'
+    return os.path.join(EXP, 'redev', sample, vdir, f'r{rep}')
+
+
 def prep_redev(sample, variant, rep, kit_method='kitgen_v1', doc_method='naivedoc'):
-    ws = os.path.join(EXP, 'redev', sample, variant, f'r{rep}', 'ws')
+    ws = os.path.join(run_dir(sample, variant, rep, kit_method), 'ws')
     if os.path.exists(os.path.dirname(ws)):
         shutil.rmtree(os.path.dirname(ws))
     os.makedirs(ws)

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:batch="http://www.springframework.org/schema/batch"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
+           http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <import resource="classpath:META-INF/spring/context-common.xml"/>
+    <import resource="classpath:META-INF/spring/context-batch.xml"/>
+
+    <!-- ================================================================ -->
+    <!--  YIELD : LOT 수율 집계 + MES 리포트 + 수율 경보                        -->
+    <!--   (2017.04 yieldAlertJob 통합)                                     -->
+    <!-- ================================================================ -->
+    <batch:job id="yieldSummaryJob" restartable="false">
+        <batch:validator ref="bizDateValidator"/>
+
+        <batch:step id="yieldCalcStep" next="yieldReportStep">
+            <batch:tasklet ref="yieldSummaryTasklet" transaction-manager="transactionManager"/>
+        </batch:step>
+
+        <batch:step id="yieldReportStep">
+            <batch:tasklet transaction-manager="transactionManager">
+                <batch:chunk reader="yieldReportReader" writer="yieldReportWriter" commit-interval="100"/>
+                <batch:listeners>
+                    <batch:listener ref="stepLogListener"/>
+                    <batch:listener ref="alertFileListener"/>
+                </batch:listeners>
+            </batch:tasklet>
+        </batch:step>
+
+        <batch:listeners>
+            <batch:listener ref="jobLogListener"/>
+        </batch:listeners>
+    </batch:job>
+
+    <bean id="yieldSummaryTasklet" class="kr.co.dhsemi.tlog.yield.YieldSummaryTasklet" scope="step">
+        <property name="workDt" value="#{jobParameters['BIZ_DATE']}"/>
+    </bean>
+
+    <bean id="yieldReportReader" class="org.mybatis.spring.batch.MyBatisCursorItemReader" scope="step">
+        <property name="sqlSessionFactory" ref="sqlSessionFactory"/>
+        <property name="queryId" value="kr.co.dhsemi.tlog.mapper.LotYieldMapper.selectReportList"/>
+        <property name="parameterValues">
+            <util:map>
+                <entry key="workDt" value="#{jobParameters['BIZ_DATE']}"/>
+            </util:map>
+        </property>
+    </bean>
+
+    <!-- MES 연계 파일 : MS949 / CRLF / 고정길이 60byte -->
+    <bean id="yieldReportWriter" class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+        <property name="resource" value="file:${dir.outbox}/YIELD_#{jobParameters['BIZ_DATE']}.txt"/>
+        <property name="encoding" value="MS949"/>
+        <property name="lineSeparator" value="&#13;&#10;"/>
+        <property name="shouldDeleteIfExists" value="true"/>
+        <property name="lineAggregator">
+            <bean class="kr.co.dhsemi.tlog.yield.YieldReportLineAggregator"/>
+        </property>
+        <property name="headerCallback" ref="yieldReportCallback"/>
+        <property name="footerCallback" ref="yieldReportCallback"/>
+    </bean>
+
+    <bean id="yieldReportCallback" class="kr.co.dhsemi.tlog.yield.YieldReportCallback" scope="step">
+        <property name="bizDate" value="#{jobParameters['BIZ_DATE']}"/>
+    </bean>
+
+    <bean id="alertFileListener" class="kr.co.dhsemi.tlog.yield.AlertFileListener" scope="step">
+        <property name="bizDate" value="#{jobParameters['BIZ_DATE']}"/>
+    </bean>
+
+</beans>

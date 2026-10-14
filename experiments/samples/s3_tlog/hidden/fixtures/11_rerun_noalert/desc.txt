@@ -1,0 +1,4 @@
+Re-run safety and ops contract: YIELD twice, late night-shift records (next day's file, WORK_DT of the
+previous day) followed by JUDGE/YIELD re-run (MERGE updates, delete+insert, report overwritten, ALERT
+appears). No ALERT file when there are no alerts. YIELD on a day without data -> header/trailer only.
+Invalid calls must exit non-zero: impossible date, unknown JOB_ID, 7-digit date.

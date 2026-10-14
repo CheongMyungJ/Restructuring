@@ -1,0 +1,5 @@
+Duplicate (SERIAL, STEP, START_DTM) handling with production policy LAST (overwrite):
+against rows already in TB_TEST_RESULT (seeded from an earlier load of ADV_20250317_01.dat),
+inside one file, across files of the same run (processing order = file name order: ADV_02, ADV_03, TER_01),
+and across vendors (TER UTC time == ADV KST time). DUP_CNT counts all duplicates (not in LOAD_CNT).
+Corrected values change JUDGE bins (FT2 F->P, READ 430 -> BIN3, ECC 6000 -> BIN2, P->F) and yield.

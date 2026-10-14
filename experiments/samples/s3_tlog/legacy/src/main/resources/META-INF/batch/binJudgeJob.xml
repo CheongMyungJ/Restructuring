@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:batch="http://www.springframework.org/schema/batch"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
+           http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <import resource="classpath:META-INF/spring/context-common.xml"/>
+    <import resource="classpath:META-INF/spring/context-batch.xml"/>
+
+    <!-- ================================================================ -->
+    <!--  JUDGE : 디바이스 최종 BIN 판정 (WORK_DT = BIZ_DATE)                 -->
+    <!-- ================================================================ -->
+    <batch:job id="binJudgeJob" restartable="false">
+        <batch:validator ref="bizDateValidator"/>
+
+        <batch:step id="binJudgeStep">
+            <batch:tasklet transaction-manager="transactionManager">
+                <batch:chunk reader="deviceSerialReader"
+                             processor="binJudgeProcessor"
+                             writer="deviceBinWriter"
+                             commit-interval="${judge.commit.interval}"/>
+                <batch:listeners>
+                    <batch:listener ref="stepLogListener"/>
+                </batch:listeners>
+            </batch:tasklet>
+        </batch:step>
+
+        <batch:listeners>
+            <batch:listener ref="jobLogListener"/>
+        </batch:listeners>
+    </batch:job>
+
+    <bean id="deviceSerialReader" class="org.mybatis.spring.batch.MyBatisPagingItemReader" scope="step">
+        <property name="sqlSessionFactory" ref="sqlSessionFactoryReader"/>
+        <property name="queryId" value="kr.co.dhsemi.tlog.mapper.TestResultMapper.selectSerialPage"/>
+        <property name="pageSize" value="${judge.page.size}"/>
+        <property name="parameterValues">
+            <util:map>
+                <entry key="workDt" value="#{jobParameters['BIZ_DATE']}"/>
+            </util:map>
+        </property>
+    </bean>
+
+    <bean id="binJudgeProcessor" class="kr.co.dhsemi.tlog.judge.BinJudgeProcessor" scope="step">
+        <property name="workDt" value="#{jobParameters['BIZ_DATE']}"/>
+    </bean>
+
+    <bean id="deviceBinWriter" class="kr.co.dhsemi.tlog.judge.DeviceBinWriter"/>
+
+</beans>

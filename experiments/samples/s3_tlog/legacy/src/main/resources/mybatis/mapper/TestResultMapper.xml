@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.dhsemi.tlog.mapper.TestResultMapper">
+
+    <resultMap id="testResultMap" type="TestResultVO">
+        <id     property="serial"     column="SERIAL"/>
+        <id     property="stepCd"     column="STEP_CD"/>
+        <id     property="startDtm"   column="START_DTM"/>
+        <result property="endDtm"     column="END_DTM"/>
+        <result property="workDt"     column="WORK_DT"/>
+        <result property="lotId"      column="LOT_ID"/>
+        <result property="prodCd"     column="PROD_CD"/>
+        <result property="testerId"   column="TESTER_ID"/>
+        <result property="operNm"     column="OPER_NM"/>
+        <result property="resultCd"   column="RESULT_CD"/>
+        <result property="readMbps"   column="READ_MBPS"/>
+        <result property="writeMbps"  column="WRITE_MBPS"/>
+        <result property="latUs"      column="LAT_US"/>
+        <result property="badBlk"     column="BAD_BLK"/>
+        <result property="eccCnt"     column="ECC_CNT"/>
+        <result property="maxTempC"   column="MAX_TEMP_C"/>
+        <result property="fwVer"      column="FW_VER"/>
+        <result property="vendorCd"   column="VENDOR_CD"/>
+        <result property="srcFileNm"  column="SRC_FILE_NM"/>
+    </resultMap>
+
+    <sql id="cols">
+        SERIAL, STEP_CD, START_DTM, END_DTM, WORK_DT, LOT_ID, PROD_CD, TESTER_ID, OPER_NM, RESULT_CD,
+        READ_MBPS, WRITE_MBPS, LAT_US, BAD_BLK, ECC_CNT, MAX_TEMP_C, FW_VER, VENDOR_CD, SRC_FILE_NM
+    </sql>
+
+    <insert id="insertTestResult" parameterType="TestResultVO">
+        INSERT INTO TB_TEST_RESULT (
+            <include refid="cols"/>, REG_DTM
+        ) VALUES (
+            #{serial}, #{stepCd}, #{startDtm}, #{endDtm}, #{workDt}, #{lotId}, #{prodCd}, #{testerId}, #{operNm}, #{resultCd},
+            #{readMbps}, #{writeMbps}, #{latUs}, #{badBlk}, #{eccCnt}, #{maxTempC}, #{fwVer}, #{vendorCd}, #{srcFileNm}, SYSDATE
+        )
+    </insert>
+
+    <!-- 중복건 덮어쓰기 -->
+    <update id="updateTestResult" parameterType="TestResultVO">
+        UPDATE TB_TEST_RESULT
+           SET END_DTM     = #{endDtm}
+             , WORK_DT     = #{workDt}
+             , LOT_ID      = #{lotId}
+             , PROD_CD     = #{prodCd}
+             , TESTER_ID   = #{testerId}
+             , OPER_NM     = #{operNm}
+             , RESULT_CD   = #{resultCd}
+             , READ_MBPS   = #{readMbps}
+             , WRITE_MBPS  = #{writeMbps}
+             , LAT_US      = #{latUs}
+             , BAD_BLK     = #{badBlk}
+             , ECC_CNT     = #{eccCnt}
+             , MAX_TEMP_C  = #{maxTempC}
+             , FW_VER      = #{fwVer}
+             , VENDOR_CD   = #{vendorCd}
+             , SRC_FILE_NM = #{srcFileNm}
+             , UPD_DTM     = SYSDATE
+         WHERE SERIAL    = #{serial}
+           AND STEP_CD   = #{stepCd}
+           AND START_DTM = #{startDtm}
+    </update>
+
+    <select id="countByKey" parameterType="TestResultVO" resultType="int">
+        SELECT COUNT(*)
+          FROM TB_TEST_RESULT
+         WHERE SERIAL    = #{serial}
+           AND STEP_CD   = #{stepCd}
+           AND START_DTM = #{startDtm}
+    </select>
+
+    <!-- JUDGE 대상 시리얼 (MyBatisPagingItemReader) -->
+    <select id="selectSerialPage" parameterType="map" resultType="string">
+        SELECT SERIAL
+          FROM (
+                SELECT ROWNUM AS RNUM, A.SERIAL
+                  FROM (
+                        SELECT DISTINCT SERIAL
+                          FROM TB_TEST_RESULT
+                         WHERE WORK_DT = #{workDt}
+                         ORDER BY SERIAL
+                       ) A
+                 WHERE ROWNUM &lt;= #{_skiprows} + #{_pagesize}
+               )
+         WHERE RNUM &gt; #{_skiprows}
+    </select>
+
+    <select id="selectAttemptList" resultMap="testResultMap">
+        SELECT <include refid="cols"/>
+          FROM TB_TEST_RESULT
+         WHERE SERIAL  = #{serial}
+           AND WORK_DT = #{workDt}
+         ORDER BY STEP_CD, START_DTM
+    </select>
+
+    <delete id="deleteBeforeWorkDt">
+        DELETE FROM TB_TEST_RESULT
+         WHERE WORK_DT &lt; #{cutoffDt}
+    </delete>
+
+</mapper>

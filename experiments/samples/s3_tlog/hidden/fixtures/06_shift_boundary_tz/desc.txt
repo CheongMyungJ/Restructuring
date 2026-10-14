@@ -1,0 +1,5 @@
+WORK_DT = production day with 06:00 shift boundary in plant time (KST). ADV: 00:00:00, 05:59:59 -> previous
+day; 06:00:00, 23:59:59 -> same day; device split over two work days. TER (UTC): 20:59:59Z/21:00:00Z,
+15:00:00Z (= KST midnight), records whose UTC date differs from KST date, end crossing midnight.
+JUDGE and YIELD run for 0317, 0318, 0319. Only correct when UTC->KST conversion and WORK_DT derivation
+use Asia/Seoul (JVM default TZ in production).

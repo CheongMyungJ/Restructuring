@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.dhsemi.tlog.mapper.DeviceBinMapper">
+
+    <update id="mergeDeviceBin" parameterType="DeviceBinVO">
+        MERGE INTO TB_DEVICE_BIN T
+        USING (SELECT CAST(#{serial} AS VARCHAR2(20)) AS SERIAL
+                    , CAST(#{workDt} AS VARCHAR2(8))  AS WORK_DT
+                 FROM DUAL) S
+           ON (T.SERIAL = S.SERIAL AND T.WORK_DT = S.WORK_DT)
+         WHEN MATCHED THEN
+              UPDATE SET T.PROD_CD = #{prodCd}
+                       , T.LOT_ID  = #{lotId}
+                       , T.BIN_NO  = #{binNo}
+                       , T.RULE_ID = #{ruleId}
+                       , T.EXCL_YN = #{exclYn}
+                       , T.UPD_DTM = SYSDATE
+         WHEN NOT MATCHED THEN
+              INSERT (SERIAL, WORK_DT, PROD_CD, LOT_ID, BIN_NO, RULE_ID, EXCL_YN, REG_DTM)
+              VALUES (#{serial}, #{workDt}, #{prodCd}, #{lotId}, #{binNo}, #{ruleId}, #{exclYn}, SYSDATE)
+    </update>
+
+    <!-- 이전 근무일 폐기 이력 -->
+    <select id="countPrevScrap" resultType="int">
+        SELECT COUNT(*)
+          FROM TB_DEVICE_BIN
+         WHERE SERIAL  = #{serial}
+           AND WORK_DT &lt; #{workDt}
+           AND BIN_NO  = 9
+    </select>
+
+</mapper>

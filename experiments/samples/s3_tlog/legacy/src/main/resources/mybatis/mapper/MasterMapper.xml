@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.dhsemi.tlog.mapper.MasterMapper">
+
+    <select id="selectProductList" resultType="ProductInfo">
+        SELECT PROD_CD, PROD_NM, PROD_GRP, ALERT_YIELD, USE_YN
+          FROM TB_PRODUCT
+    </select>
+
+    <!--
+        적용 순서 : 우선순위 -> 제품지정 룰 우선(* 는 나중) -> BIN 번호 큰 것 우선
+    -->
+    <select id="selectBinRuleList" resultType="BinRuleVO">
+        SELECT RULE_ID, PROD_CD, ITEM_CD, OPER_CD, THRESHOLD, BIN_NO, PRIORITY, USE_YN, RULE_DESC
+          FROM TB_BIN_RULE
+         WHERE USE_YN = 'Y'
+         ORDER BY PRIORITY ASC
+                , CASE WHEN PROD_CD = '*' THEN 1 ELSE 0 END ASC
+                , BIN_NO DESC
+                , RULE_ID ASC
+    </select>
+
+</mapper>

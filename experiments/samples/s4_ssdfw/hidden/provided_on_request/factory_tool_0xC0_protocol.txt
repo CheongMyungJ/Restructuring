@@ -1,0 +1,23 @@
+s4ft (S4 factory test tool) - vendor command 0xC0 parsing note      생산기술팀 2017.03 / rev 2018.11
+
+Command : Admin opcode 0xC0, NSID 0, CDW10..15 = 0, data-in 512 bytes
+Result  : CQE status must be 0; CDW0 = number of valid fields (layout 3: 23)
+
+Parsing : every field is a 32-bit unsigned integer, BIG-ENDIAN (MSB first).
+          s4ft reads bytes [4*i .. 4*i+3] as (b0<<24)|(b1<<16)|(b2<<8)|b3.
+          Byte 0..3 must read 0x53344443 ('S','4','D','C' in memory order) or the
+          station reports "DUT protocol error" and bins the drive as FAIL.
+
+Fields used by the station (layout 3):
+  [0]  0x00 signature 0x53344443        [10] 0x28 free blocks (>= 4 at final test)
+  [1]  0x04 layout version (3)           [11] 0x2C min EC
+  [4]  0x10 bad block total (<= 2% of blocks)
+  [5]  0x14 grown bad (must be 0 after burn-in, else RMA bin)
+  [6]  0x18 read retry count (burn-in report)
+  [14] 0x38 program fail  [15] 0x3C erase fail  (must be 0 after burn-in)
+  [16] 0x40 thermal level (must be 0 during final test)
+Other fields are logged only.
+
+Note: the FW header comment says little-endian. The station was written against the
+EVB firmware in 2017 which already used big-endian; the station source is owned by the
+vendor (no source access). Do NOT change the byte order in firmware.

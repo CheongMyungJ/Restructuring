@@ -1,0 +1,3 @@
+Production-like day (seeded random): 2 ADV + 2 TER files, ~140 devices in 5 lots / 4 products, retests up
+to 4 attempts, rule hits, aborts, ES samples, SN-prefixed TER serials, a few rejects, duplicates across
+files (LAST wins) and night-shift records belonging to the previous work day (JUDGE/YIELD for 0324 and 0325).

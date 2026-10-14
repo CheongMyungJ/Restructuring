@@ -1,0 +1,71 @@
+==============================================================================
+ TLOG 배치 운영 가이드
+ (SSD 양산 테스트 로그 수집 / BIN 판정 / LOT 수율 집계)
+
+ 최종수정 : 2019.11.28  제조IT팀 이동욱
+==============================================================================
+
+1. 개요
+ - 테스터(ADV, TER) 로그 파일을 수집하여 디바이스 BIN 을 판정하고
+   LOT 수율 리포트를 MES 로 전달하는 배치
+ - 배치서버 : tlogbat01 (운영) / tlogbat-dev01 (개발)
+ - 실행계정 : tlogadm
+
+2. 디렉토리
+ /app/tlog/batch          배치 프로그램 (빌드한 target 디렉토리를 통째로 배포)
+ /app/tlog/batch/bin      실행 스크립트 run_job.sh
+ /app/tlog/logs           cron 실행 로그
+ $TLOG_HOME (/data/tlog)
+   inbox/                 장비 로그 수신 (ADV: FTP, TER: SFTP)
+   outbox/                MES 리포트(YIELD_*.txt), 수율 경보(ALERT_*.csv)
+   reject/                오류 레코드 (*.rej) - 장비 업체 회신용
+   archive/<기준일자>/     처리 완료 파일
+
+ ※ 환경변수(TLOG_HOME, TLOG_DB_URL, TLOG_DB_USER, TLOG_DB_PASSWORD 등)는
+   서버 공통 프로파일에 설정되어 있음. 인프라팀 관리 사항이므로 임의 변경 금지.
+
+3. 정기 실행 (crontab -l , tlogadm)
+ # TLOG 배치 - 기준일자 = 전일
+ 30 6 * * * bash -lc '/app/tlog/batch/bin/run_job.sh LOAD  $(date -d "1 day ago" +\%Y\%m\%d)' >> /app/tlog/logs/load.log 2>&1
+ 40 6 * * * bash -lc '/app/tlog/batch/bin/run_job.sh JUDGE $(date -d "1 day ago" +\%Y\%m\%d)' >> /app/tlog/logs/judge.log 2>&1
+ 50 6 * * * bash -lc '/app/tlog/batch/bin/run_job.sh YIELD $(date -d "1 day ago" +\%Y\%m\%d)' >> /app/tlog/logs/yield.log 2>&1
+ # 00 7 * * * ... ALERT  (2017.04 YIELD 잡에 통합되어 삭제)
+
+ - MES 가 07:30 에 outbox 의 YIELD_<기준일자>.txt 를 수거한다.
+   07:30 이전에 YIELD 가 끝나야 함. 늦어지면 MES팀에 통보.
+ - 품질팀 메일 스크립트가 07:40 에 ALERT_<기준일자>.csv 가 있으면 경보 메일을 발송한다.
+ - outbox 파일은 수작업으로 수정하지 말 것 (MES 수신 오류 발생 이력 있음).
+
+4. 수동 실행 / 재실행
+ - 실행 : /app/tlog/batch/bin/run_job.sh <LOAD|JUDGE|YIELD|PURGE> <yyyyMMdd>
+ - 종료코드 0 = 정상, 그 외 = 실패 → 로그 확인
+ - 동일 기준일자 재실행 가능 (스크립트가 run.ts 파라미터를 자동으로 붙임)
+ - JUDGE, YIELD 는 재실행하면 해당 일자 결과를 다시 만든다 (중복 생성 없음)
+ - LOAD 재처리
+     처리된 파일은 archive/<기준일자>/ 로 이동되므로 재적재가 필요하면
+     해당 파일을 inbox 로 복사한 뒤 LOAD 재실행.
+     (이미 적재된 데이터와 키가 같은 레코드는 중복 건수로 집계됨)
+ - 야간조(00~06시) 테스트는 근무일자가 전일이지만 익일자 파일로 들어오는 경우가 있음.
+   현업에서 전일자 수율 재집계 요청이 오면 익일 LOAD 이후 아래 순서로 수행
+     run_job.sh JUDGE <전일자>
+     run_job.sh YIELD <전일자>
+
+5. 장애 대응
+ - LOAD 실패 : 로그에서 오류 파일 확인. 파일 깨짐/전송 중단이면 장비파트에 재전송 요청.
+ - reject 발생 : 매일 오전 reject 디렉토리 확인 후 장비 업체 회신.
+   파일 전체 오류(E09)는 해당 파일이 전혀 적재되지 않은 것이므로 즉시 재전송 요청.
+ - YIELD 리포트 미생성 : MES팀에 지연 통보 후 재실행.
+ - DB 접속 오류 : DBA 연락.
+ - 기준정보(제품/BIN 룰) 오류 : 기준정보팀에 확인 요청. 배치에서 직접 수정 금지.
+
+6. 연락처
+ 제조IT팀 TLOG 담당      이동욱 책임   (내선 4417)
+ 제조IT팀 (부담당)        최민호 선임   (내선 4421)
+ DBA                    정보시스템팀 DB파트 (내선 2200)
+ MES                    MES팀 한지민 (내선 3315)
+ 테스터 장비 (ADV/TER)    테스트기술팀 장비파트 (내선 5120)
+ 기준정보                기준정보팀 (기준정보 변경요청서)
+
+7. 참고 문서
+ - TLOG_배치_설계서_v1.3.docx
+ - 인터페이스_정의서.xlsx
