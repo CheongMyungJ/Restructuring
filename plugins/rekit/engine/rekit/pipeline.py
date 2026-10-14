@@ -53,6 +53,10 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class SessionFailed(RuntimeError):
+    """An AI session failed: the phase is NOT marked done, so `rekit run` resumes it."""
+
+
 class Pipeline:
     def __init__(self, ws, log=print):
         self.ws = os.path.abspath(ws)
@@ -112,6 +116,10 @@ class Pipeline:
         self.update_state(lambda s: s['sessions'].append(rec))
         tag = 'ERROR' if r['is_error'] else 'ok'
         self.log(f'  · {step}: {tag} ({r["wall_s"]:.0f}s, ${r["cost_usd"]:.2f})')
+        if r.get('usage_limit'):
+            raise SessionFailed(f'Claude 사용량 한도에 도달했습니다({(r["result"] or "")[:120]}). 한도가 풀린 뒤 `rekit run`으로 이어서 진행하세요.')
+        if r['is_error']:
+            raise SessionFailed(f'{step} 세션 실패: {(r["result"] or "")[:200]} (로그 {log_path}). `rekit run`으로 재시도할 수 있습니다.')
         return r
 
     def phase_done(self, name):
@@ -212,7 +220,11 @@ class Pipeline:
             files = '\n'.join(f'- {f}' for f in u['files'])
             prompt = self.render('unit_v2.md', UNIT_ID=u['id'], UNIT_TITLE=u.get('title', ''), FILES=files,
                                  FOCUS=u.get('focus', ''), CHECKLIST=self.checklist())
-            r = self.claude(f"unit:{u['id']}", prompt)
+            try:
+                r = self.claude(f"unit:{u['id']}", prompt)
+            except SessionFailed:
+                self.update_state(lambda s: s['units'].__setitem__(u['id'], 'failed'))
+                raise
             ok = os.path.exists(os.path.join(self.kit, '05_behavior', f"{u['id']}.md"))
             status = 'done' if ok and not r['is_error'] else 'failed'
             self.update_state(lambda s: s['units'].__setitem__(u['id'], status))

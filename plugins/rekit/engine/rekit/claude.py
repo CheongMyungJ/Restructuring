@@ -65,6 +65,10 @@ def run_claude(prompt, cwd, log_path, model=None, effort=None, add_dirs=(), time
             'timed_out': timed_out,
             'log': log_path,
         }
+        low = (out['result'] or '').lower()
+        if out['is_error'] and ((result or {}).get('api_error') == 'usage_limit_reached' or 'limit' in low and ('session' in low or 'usage' in low)):
+            out['usage_limit'] = True
+            return out                    # not transient on a 30s scale: let the pipeline stop (resumable)
         transient = (result is None and not timed_out) or (
             out['is_error'] and any(s in (out['result'] or '').lower() for s in ('overloaded', 'rate limit', '529', 'timeout', 'api error')))
         if transient and attempt <= max_retries:

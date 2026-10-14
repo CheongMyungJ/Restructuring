@@ -51,9 +51,9 @@
    }
   },
   "s2/rekit_v4_max": {
-   "cost_usd": 10.63,
-   "wall_min": 22.0,
-   "sessions": 7,
+   "cost_usd": 19.26,
+   "wall_min": 43.0,
+   "sessions": 14,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -61,13 +61,14 @@
    }
   },
   "s2/rekit_v4_balanced": {
-   "cost_usd": 21.1,
-   "wall_min": 55.7,
-   "sessions": 9,
+   "cost_usd": 30.07,
+   "wall_min": 81.5,
+   "sessions": 18,
    "phases": {
     "inventory": "done",
     "survey": "done",
-    "units": "running"
+    "units": "done",
+    "synthesize": "done"
    }
   },
   "s2/rekit_v2_opus": {
@@ -82,9 +83,9 @@
    }
   },
   "s2/rekit_v1": {
-   "cost_usd": 102.48,
-   "wall_min": 303.6,
-   "sessions": 34,
+   "cost_usd": 109.68,
+   "wall_min": 328.4,
+   "sessions": 36,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -92,13 +93,15 @@
     "synthesize": "done",
     "gate1": "done",
     "characterize": "done",
-    "review": "running"
+    "review": "done",
+    "gate2": "done",
+    "finalize": "done"
    }
   },
   "s4/rekit_v3_oracle": {
-   "cost_usd": 26.44,
-   "wall_min": 75.0,
-   "sessions": 12,
+   "cost_usd": 37.67,
+   "wall_min": 106.0,
+   "sessions": 23,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -106,14 +109,19 @@
    }
   },
   "s4/rekit_v3_none": {
-   "cost_usd": 42.74,
-   "wall_min": 119.2,
-   "sessions": 20,
+   "cost_usd": 47.49,
+   "wall_min": 125.5,
+   "sessions": 38,
    "phases": {
     "inventory": "done",
     "survey": "done",
     "units": "done",
-    "synthesize": "running"
+    "synthesize": "done",
+    "gate1": "done",
+    "characterize": "done",
+    "review": "done",
+    "gate2": "done",
+    "finalize": "done"
    }
   },
   "s3/rekit_v2_none": {
@@ -133,9 +141,9 @@
    }
   },
   "s3/rekit_v2_oracle": {
-   "cost_usd": 29.18,
-   "wall_min": 105.9,
-   "sessions": 10,
+   "cost_usd": 32.06,
+   "wall_min": 115.7,
+   "sessions": 13,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -143,7 +151,9 @@
     "synthesize": "done",
     "gate1": "done",
     "characterize": "done",
-    "review": "running"
+    "review": "done",
+    "gate2": "done",
+    "finalize": "done"
    }
   }
  },
@@ -1010,6 +1020,164 @@
   },
   {
    "sample": "s3",
+   "variant": "V3",
+   "rep": 1,
+   "kit_method": "rekit_v2_none",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 4.17,
+   "wall_min": 25.9,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V3@rekit_v2_none/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "rekit_v2_none",
+   "tk_score": 0.732,
+   "code_score": 1.0,
+   "score": 0.9241,
+   "passed": 134,
+   "total": 145,
+   "categories": {
+    "01_basic_flow": {
+     "passed": 11,
+     "total": 11
+    },
+    "02_ms949_korean": {
+     "passed": 12,
+     "total": 12
+    },
+    "03_ter_csv_format": {
+     "passed": 11,
+     "total": 11
+    },
+    "04_reject_codes": {
+     "passed": 15,
+     "total": 15
+    },
+    "05_dup_policy": {
+     "passed": 6,
+     "total": 11
+    },
+    "06_shift_boundary_tz": {
+     "passed": 12,
+     "total": 12
+    },
+    "07_retest_attempts": {
+     "passed": 11,
+     "total": 11
+    },
+    "08_rules_override": {
+     "passed": 11,
+     "total": 11
+    },
+    "09_scrap_es": {
+     "passed": 11,
+     "total": 11
+    },
+    "10_yield_trunc_alert": {
+     "passed": 11,
+     "total": 11
+    },
+    "11_rerun_noalert": {
+     "passed": 13,
+     "total": 13
+    },
+    "12_full_day_mixed": {
+     "passed": 10,
+     "total": 16
+    }
+   },
+   "cost_usd": 4.32,
+   "wall_min": 27.0,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V3@rekit_v2_none/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V3",
+   "rep": 1,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V3@rekit_v2_oracle/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V3@rekit_v2_oracle/r2"
+  },
+  {
+   "sample": "s3",
    "variant": "V4",
    "rep": 1,
    "kit_method": "kitgen_v1",
@@ -1137,6 +1305,62 @@
    "wall_min": 30.5,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V4/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V4",
+   "rep": 1,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V4@rekit_v2_oracle/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V4",
+   "rep": 2,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V4@rekit_v2_oracle/r2"
+  },
+  {
+   "sample": "s3",
+   "variant": "V5",
+   "rep": 1,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V5@rekit_v2_oracle/r1"
+  },
+  {
+   "sample": "s3",
+   "variant": "V5",
+   "rep": 2,
+   "kit_method": "rekit_v2_oracle",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s3/V5@rekit_v2_oracle/r2"
   },
   {
    "sample": "s4",
@@ -1368,6 +1592,34 @@
    "wall_min": 19.1,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V1/r2"
+  },
+  {
+   "sample": "s4",
+   "variant": "V3",
+   "rep": 1,
+   "kit_method": "rekit_v3_none",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.0,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V3@rekit_v3_none/r1"
+  },
+  {
+   "sample": "s4",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "rekit_v3_none",
+   "score": null,
+   "passed": null,
+   "total": null,
+   "categories": null,
+   "cost_usd": 0,
+   "wall_min": 0.0,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V3@rekit_v3_none/r2"
   }
  ]
 }

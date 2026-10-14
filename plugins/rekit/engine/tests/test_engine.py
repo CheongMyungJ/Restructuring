@@ -139,6 +139,24 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(len(st['units']), 400)
         self.assertAlmostEqual(Pipeline(ws).total_cost(), 4.0, places=2)
 
+    def test_failed_session_not_marked_done(self):
+        from rekit import pipeline as pl
+        ws = os.path.join(self.tmp, 'work5')
+        subprocess.run(RK + ['init', ws, '--code', self.code, '--no-intake'], capture_output=True, text=True, check=True)
+        fake = {'result': "You've hit your session limit", 'structured': None, 'cost_usd': 0.0, 'wall_s': 0.1,
+                'num_turns': 1, 'session_id': 'x', 'is_error': True, 'timed_out': False, 'usage_limit': True}
+        orig = pl.run_claude
+        pl.run_claude = lambda *a, **k: dict(fake)
+        try:
+            p = Pipeline(ws, log=lambda *a: None)
+            with self.assertRaises(pl.SessionFailed):
+                p.run()
+            st = json.load(open(os.path.join(ws, '.rekit', 'state.json')))
+            self.assertEqual(st['phases']['inventory'], 'done')
+            self.assertNotEqual(st['phases'].get('survey'), 'done')
+        finally:
+            pl.run_claude = orig
+
     def test_prompts_render(self):
         ws = os.path.join(self.tmp, 'work3')
         subprocess.run(RK + ['init', ws, '--code', self.code, '--no-intake'], capture_output=True, text=True, check=True)
