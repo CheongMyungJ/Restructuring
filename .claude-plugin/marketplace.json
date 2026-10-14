@@ -1,0 +1,12 @@
+{
+  "name": "restructuring",
+  "owner": { "name": "CheongMyungJ" },
+  "description": "레거시 코드 → AI 재개발용 키트 생성 도구 (rekit)",
+  "plugins": [
+    {
+      "name": "rekit",
+      "source": "./plugins/rekit",
+      "description": "레거시 코드와 자료를 분석해 AI가 재개발할 수 있는 키트(명세·골든 테스트·작업계획)를 만들고, 필요한 것은 사람에게 묻는다."
+    }
+  ]
+}

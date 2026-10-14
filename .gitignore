@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.rekit/
+rekit-work/
+experiments/_work/
+*.o
+*.a

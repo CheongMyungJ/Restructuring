@@ -1,0 +1,248 @@
+"""rekit command line.
+
+  rekit init <workspace> --code <dir> [--code <dir>...] [--materials <dir|file>...] [--name NAME] [--no-intake]
+  rekit run [<workspace>] [--until PHASE] [--human interactive|file|oracle|none]
+  rekit status [<workspace>]
+  rekit questions [<workspace>] [--export FILE] [--json]
+  rekit answer [<workspace>] [--import FILE] [--set QID "answer"] [--defer QID]
+  rekit add-material [<workspace>] <file|dir>...
+  rekit coverage [<workspace>]
+Exit codes: 0 done/ok, 10 waiting for human answers, 1 error.
+"""
+import argparse, json, os, shutil, sys
+
+from .pipeline import Pipeline, PHASES, NEEDS_HUMAN, DEFAULT_CONFIG
+from .questions import QuestionStore, ask_terminal
+
+INTAKE_QUESTIONS = [
+    ('goal', '재개발의 목적/배경은 무엇인가요? (예: 플랫폼 교체, 유지보수성, 성능, 단종 대응)'),
+    ('target', '목표 기술 스택/플랫폼이 정해져 있나요? (예: Java 21 + Spring Boot 3, 신규 SoC + C11, 미정)'),
+    ('compat', '반드시 그대로 유지해야 하는 것은? (외부 인터페이스, 파일/전문 포맷, DB 스키마, 온플래시 데이터 포맷, 프로토콜, 성능 등 / 모름)'),
+    ('scope', '재개발 범위에서 제외할 기능/모듈이 있나요? (예: 사용하지 않는 배치, 특정 #ifdef 변형)'),
+    ('env', '레거시를 빌드/실행해 볼 수 있는 환경·장비·테스트 데이터가 있나요? 운영 환경 설정(JVM 옵션, 빌드 플래그 등)을 아는 분이 있나요?'),
+    ('people', '질문에 답해 줄 수 있는 사람(역할)은 누구인가요? (예: 운영 담당, 현업, 원 개발자)'),
+]
+
+
+def ws_arg(p):
+    return os.path.abspath(p or os.getcwd())
+
+
+def cmd_init(a):
+    ws = os.path.abspath(a.workspace)
+    os.makedirs(ws, exist_ok=True)
+    cfg = json.loads(json.dumps(DEFAULT_CONFIG))
+    cfg['project'] = a.name or os.path.basename(ws)
+    cfg['code'] = [{'label': f'code{i + 1}' if len(a.code) > 1 else 'code', 'path': os.path.abspath(p)} for i, p in enumerate(a.code)]
+    cfg['materials'] = [{'label': f'materials{i + 1}' if len(a.materials) > 1 else 'materials', 'path': os.path.abspath(p)}
+                        for i, p in enumerate(a.materials or [])]
+    for c in cfg['code'] + cfg['materials']:
+        if not os.path.exists(c['path']):
+            sys.exit(f"경로가 없습니다: {c['path']}")
+    if a.lang:
+        cfg['language'] = a.lang
+    json.dump(cfg, open(os.path.join(ws, 'rekit.json'), 'w'), ensure_ascii=False, indent=1)
+    os.makedirs(os.path.join(ws, '.rekit'), exist_ok=True)
+    intake = ['# Intake (사람이 제공한 사전 정보)', '']
+    answers = json.loads(a.intake_json) if a.intake_json else {}
+    if not a.no_intake and not answers and sys.stdin.isatty():
+        print('사전 질문 (모르면 Enter):')
+        for key, q in INTAKE_QUESTIONS:
+            answers[key] = input(f'- {q}\n> ').strip()
+    for key, q in INTAKE_QUESTIONS:
+        intake += [f'## {q}', answers.get(key) or '(답변 없음)', '']
+    open(os.path.join(ws, '.rekit', 'intake.md'), 'w', encoding='utf-8').write('\n'.join(intake))
+    print(f'워크스페이스 생성: {ws}\n다음: rekit run {ws}')
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def run_state(ws):
+    """running | waiting_human | done | failed | idle — based on pid file and last run record."""
+    pidf = os.path.join(ws, '.rekit', 'run.pid')
+    if os.path.exists(pidf):
+        try:
+            if _pid_alive(int(open(pidf).read().strip())):
+                return 'running'
+        except ValueError:
+            pass
+    last = os.path.join(ws, '.rekit', 'last_run.json')
+    if os.path.exists(last):
+        rc = json.load(open(last)).get('exit_code')
+        return {0: 'done', NEEDS_HUMAN: 'waiting_human'}.get(rc, 'failed')
+    return 'idle'
+
+
+def cmd_run(a):
+    ws = ws_arg(a.workspace)
+    if a.bg:
+        import subprocess, time
+        if run_state(ws) == 'running':
+            print('이미 실행 중입니다.'); return 0
+        args = [sys.executable, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'rekit.py'),
+                'run', ws]
+        for opt, val in (('--until', a.until), ('--human', a.human), ('--oracle', a.oracle),
+                         ('--oracle-files', a.oracle_files), ('--parallel', a.parallel)):
+            if val:
+                args += [opt, str(val)]
+        for ph in (a.redo or []):
+            args += ['--redo', ph]
+        logf = open(os.path.join(ws, '.rekit', 'run.log'), 'a')
+        logf.write(f"\n===== run started {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n"); logf.flush()
+        proc = subprocess.Popen(args, stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                                start_new_session=True, cwd=ws)
+        open(os.path.join(ws, '.rekit', 'run.pid'), 'w').write(str(proc.pid))
+        print(f'백그라운드 실행 시작 (pid {proc.pid}). 진행상황: rekit status {ws}  / 로그: {ws}/.rekit/run.log')
+        return 0
+    rc = _cmd_run(a, ws)
+    import time
+    json.dump({'exit_code': rc, 'finished_at': time.strftime('%Y-%m-%d %H:%M:%S')},
+              open(os.path.join(ws, '.rekit', 'last_run.json'), 'w'))
+    return rc
+
+
+def _cmd_run(a, ws):
+    p = Pipeline(ws)
+    if a.human:
+        p.cfg['human'] = a.human
+    if a.oracle:
+        p.cfg['human'] = 'oracle'
+        p.cfg['oracle_knowledge'] = os.path.abspath(a.oracle)
+    if a.oracle_files:
+        p.cfg['oracle_files'] = os.path.abspath(a.oracle_files)
+    if a.parallel:
+        p.cfg['parallel'] = a.parallel
+    for ph in (a.redo or []):
+        p.state['phases'].pop(ph, None)
+    p.save_state()
+    try:
+        rc = p.run(until=a.until)
+    except Exception as e:
+        print(f'오류: {e}', file=sys.stderr)
+        return 1
+    if rc == NEEDS_HUMAN:
+        store = QuestionStore(ws)
+        n = len(store.pending(tuple(p.cfg['gate_priorities'])))
+        print(f'\n[대기] 사람의 확인이 필요한 질문 {n}개. `rekit answer {ws}` 로 답한 뒤 `rekit run {ws}` 를 다시 실행하세요.')
+        return NEEDS_HUMAN
+    cov = p.coverage() if os.path.exists(os.path.join(ws, '.rekit', 'inventory.json')) else {}
+    print(f"\n[완료] 키트: {os.path.join(ws, 'kit')}  누적 비용 ${p.total_cost()}  "
+          f"파일 커버리지 {cov.get('files_referenced')}/{cov.get('files_total')}, 심볼 {cov.get('symbols_referenced')}/{cov.get('symbols_total')}")
+    return 0
+
+
+def cmd_status(a):
+    ws = ws_arg(a.workspace)
+    p = Pipeline(ws)
+    st = p.state
+    print(f"프로젝트: {p.cfg['project']}   상태: {run_state(ws)}   누적 비용: ${p.total_cost()}")
+    for ph in PHASES:
+        print(f"  {ph:13s} {st['phases'].get(ph, '-')}")
+    if st.get('units'):
+        done = sum(1 for v in st['units'].values() if v == 'done')
+        print(f"  units: {done}/{len(p.load_units().get('units', []))} done")
+    store = QuestionStore(ws)
+    by = {}
+    for q in store.items:
+        by[q['status']] = by.get(q['status'], 0) + 1
+    print(f'  questions: {by}')
+    if a.json:
+        print(json.dumps({'run_state': run_state(ws), 'phases': st['phases'], 'units': st.get('units'),
+                          'questions': by, 'cost': p.total_cost()}))
+
+
+def cmd_questions(a):
+    ws = ws_arg(a.workspace)
+    store = QuestionStore(ws)
+    if a.export:
+        n = store.export_for_humans(a.export)
+        print(f'{n}개 질문을 {a.export} 로 내보냈습니다.')
+        return
+    pend = store.pending()
+    if a.json:
+        print(json.dumps(pend, ensure_ascii=False, indent=1))
+        return
+    for q in pend:
+        print(f"{q['id']} [{q.get('priority')}] {q['question']}")
+        for i, o in enumerate(q.get('options') or [], 1):
+            print(f'    {i}) {o}')
+
+
+def cmd_answer(a):
+    ws = ws_arg(a.workspace)
+    store = QuestionStore(ws)
+    inbox = os.path.join(ws, 'materials_inbox')
+    if a.import_file:
+        n = store.import_from_humans(a.import_file)
+        store.save()
+        print(f'{n}개 답변을 가져왔습니다.')
+        return
+    if a.set:
+        qid, ans = a.set
+        files = []
+        for f in a.file or []:
+            os.makedirs(inbox, exist_ok=True)
+            dst = os.path.join(inbox, os.path.basename(f.rstrip('/')))
+            (shutil.copytree if os.path.isdir(f) else shutil.copy2)(f, dst)
+            files.append(dst)
+        store.record_answer(qid, ans, files=files)
+        store.save()
+        print(f'{qid} 답변 저장')
+        return
+    if a.defer:
+        store.defer(a.defer, '보류')
+        store.save()
+        return
+    ask_terminal(store, materials_inbox=inbox)
+
+
+def cmd_add_material(a):
+    ws = ws_arg(a.workspace)
+    inbox = os.path.join(ws, 'materials_inbox')
+    os.makedirs(inbox, exist_ok=True)
+    for f in a.paths:
+        dst = os.path.join(inbox, os.path.basename(f.rstrip('/')))
+        (shutil.copytree if os.path.isdir(f) else shutil.copy2)(f, dst)
+    cfg_path = os.path.join(ws, 'rekit.json')
+    cfg = json.load(open(cfg_path, encoding='utf-8'))
+    if not any(m['label'] == 'provided' for m in cfg['materials']):
+        cfg['materials'].append({'label': 'provided', 'path': inbox})
+        json.dump(cfg, open(cfg_path, 'w'), ensure_ascii=False, indent=1)
+    from . import materials
+    materials.convert_all([(m['label'], m['path']) for m in cfg['materials']], os.path.join(ws, '.rekit', 'materials_text'))
+    print(f'{len(a.paths)}개 자료 추가 완료 (다음 rekit run 에 반영)')
+
+
+def cmd_coverage(a):
+    print(json.dumps({k: v for k, v in Pipeline(ws_arg(a.workspace)).coverage().items() if not k.startswith('unref')}, indent=1))
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog='rekit', description='레거시 코드+자료 → AI 재개발용 키트 생성기')
+    sub = ap.add_subparsers(dest='cmd', required=True)
+    s = sub.add_parser('init'); s.add_argument('workspace'); s.add_argument('--code', action='append', required=True)
+    s.add_argument('--materials', action='append'); s.add_argument('--name'); s.add_argument('--lang')
+    s.add_argument('--no-intake', action='store_true'); s.add_argument('--intake-json')
+    s.set_defaults(fn=cmd_init)
+    s = sub.add_parser('run'); s.add_argument('workspace', nargs='?'); s.add_argument('--until', choices=PHASES)
+    s.add_argument('--human', choices=['interactive', 'file', 'oracle', 'none']); s.add_argument('--oracle')
+    s.add_argument('--oracle-files'); s.add_argument('--parallel', type=int); s.add_argument('--redo', action='append', choices=PHASES)
+    s.add_argument('--bg', action='store_true', help='detach and run in background (pid/log in .rekit/)')
+    s.set_defaults(fn=cmd_run)
+    s = sub.add_parser('status'); s.add_argument('workspace', nargs='?'); s.add_argument('--json', action='store_true'); s.set_defaults(fn=cmd_status)
+    s = sub.add_parser('questions'); s.add_argument('workspace', nargs='?'); s.add_argument('--export'); s.add_argument('--json', action='store_true')
+    s.set_defaults(fn=cmd_questions)
+    s = sub.add_parser('answer'); s.add_argument('workspace', nargs='?'); s.add_argument('--import', dest='import_file')
+    s.add_argument('--set', nargs=2, metavar=('QID', 'ANSWER')); s.add_argument('--file', action='append'); s.add_argument('--defer')
+    s.set_defaults(fn=cmd_answer)
+    s = sub.add_parser('add-material'); s.add_argument('workspace'); s.add_argument('paths', nargs='+'); s.set_defaults(fn=cmd_add_material)
+    s = sub.add_parser('coverage'); s.add_argument('workspace', nargs='?'); s.set_defaults(fn=cmd_coverage)
+    a = ap.parse_args(argv)
+    rc = a.fn(a)
+    sys.exit(rc or 0)
