@@ -304,6 +304,11 @@ def cmd_coverage(a):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):      # progress lines must reach run.log / redirected files immediately
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(prog='rekit', description='레거시 코드+자료 → AI 재개발용 키트 생성기')
     sub = ap.add_subparsers(dest='cmd', required=True)
     s = sub.add_parser('init'); s.add_argument('workspace'); s.add_argument('--code', action='append', required=True)
