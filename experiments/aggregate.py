@@ -52,7 +52,8 @@ def redev_results():
             other_fail = len(failed - tk)
             tk_info = {'tk_score': round((len(tk) - tk_fail) / len(tk), 3),
                        'code_score': round((other_total - other_fail) / other_total, 3) if other_total else None}
-        rows.append({'sample': d['sample'], 'variant': d['variant'], 'rep': d['rep'], 'kit_method': d.get('kit_method'), **tk_info,
+        rows.append({'sample': d['sample'], 'variant': d['variant'], 'rep': d['rep'], **tk_info,
+                     'kit_method': {'V0': '-', 'V1': 'naivedoc'}.get(d['variant'], d.get('kit_method')),
                      'score': sc.get('score'), 'passed': sc.get('passed'), 'total': sc.get('total'),
                      'categories': sc.get('categories'), 'cost_usd': round(d['session'].get('cost_usd') or 0, 2),
                      'wall_min': round((d['session'].get('wall_s') or 0) / 60, 1), 'audit': d.get('audit_violations'),
