@@ -100,9 +100,9 @@
    }
   },
   "s4/rekit_v3_oracle": {
-   "cost_usd": 151.36,
-   "wall_min": 287.2,
-   "sessions": 50,
+   "cost_usd": 167.26,
+   "wall_min": 325.5,
+   "sessions": 55,
    "phases": {
     "inventory": "done",
     "survey": "done",
@@ -110,7 +110,9 @@
     "synthesize": "done",
     "gate1": "done",
     "characterize": "done",
-    "review": "running"
+    "review": "done",
+    "gate2": "done",
+    "finalize": "done"
    }
   },
   "s4/rekit_v3_none": {
@@ -2280,6 +2282,391 @@
    "wall_min": 26.7,
    "audit": 0,
    "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V3@rekit_v3_none/r2"
+  },
+  {
+   "sample": "s4",
+   "variant": "V3",
+   "rep": 1,
+   "kit_method": "rekit_v3_oracle",
+   "tk_score": 1.0,
+   "code_score": 1.0,
+   "score": 1.0,
+   "passed": 178,
+   "total": 178,
+   "categories": {
+    "build": {
+     "passed": 1,
+     "total": 1
+    },
+    "cmd": {
+     "passed": 21,
+     "total": 21
+    },
+    "identify": {
+     "passed": 14,
+     "total": 14
+    },
+    "integrity": {
+     "passed": 16,
+     "total": 16
+    },
+    "smart": {
+     "passed": 15,
+     "total": 15
+    },
+    "vendor": {
+     "passed": 9,
+     "total": 9
+    },
+    "gcwl": {
+     "passed": 11,
+     "total": 11
+    },
+    "badblock": {
+     "passed": 13,
+     "total": 13
+    },
+    "readretry": {
+     "passed": 10,
+     "total": 10
+    },
+    "readdisturb": {
+     "passed": 4,
+     "total": 4
+    },
+    "powerloss": {
+     "passed": 21,
+     "total": 21
+    },
+    "compat": {
+     "passed": 19,
+     "total": 19
+    },
+    "thermal": {
+     "passed": 12,
+     "total": 12
+    },
+    "features": {
+     "passed": 11,
+     "total": 11
+    },
+    "nand_protocol": {
+     "passed": 1,
+     "total": 1
+    }
+   },
+   "cost_usd": 8.29,
+   "wall_min": 21.6,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V3@rekit_v3_oracle/r1"
+  },
+  {
+   "sample": "s4",
+   "variant": "V3",
+   "rep": 2,
+   "kit_method": "rekit_v3_oracle",
+   "tk_score": 1.0,
+   "code_score": 1.0,
+   "score": 1.0,
+   "passed": 178,
+   "total": 178,
+   "categories": {
+    "build": {
+     "passed": 1,
+     "total": 1
+    },
+    "cmd": {
+     "passed": 21,
+     "total": 21
+    },
+    "identify": {
+     "passed": 14,
+     "total": 14
+    },
+    "integrity": {
+     "passed": 16,
+     "total": 16
+    },
+    "smart": {
+     "passed": 15,
+     "total": 15
+    },
+    "vendor": {
+     "passed": 9,
+     "total": 9
+    },
+    "gcwl": {
+     "passed": 11,
+     "total": 11
+    },
+    "badblock": {
+     "passed": 13,
+     "total": 13
+    },
+    "readretry": {
+     "passed": 10,
+     "total": 10
+    },
+    "readdisturb": {
+     "passed": 4,
+     "total": 4
+    },
+    "powerloss": {
+     "passed": 21,
+     "total": 21
+    },
+    "compat": {
+     "passed": 19,
+     "total": 19
+    },
+    "thermal": {
+     "passed": 12,
+     "total": 12
+    },
+    "features": {
+     "passed": 11,
+     "total": 11
+    },
+    "nand_protocol": {
+     "passed": 1,
+     "total": 1
+    }
+   },
+   "cost_usd": 6.7,
+   "wall_min": 14.7,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V3@rekit_v3_oracle/r2"
+  },
+  {
+   "sample": "s4",
+   "variant": "V4",
+   "rep": 1,
+   "kit_method": "rekit_v3_oracle",
+   "tk_score": 1.0,
+   "code_score": 1.0,
+   "score": 1.0,
+   "passed": 178,
+   "total": 178,
+   "categories": {
+    "build": {
+     "passed": 1,
+     "total": 1
+    },
+    "cmd": {
+     "passed": 21,
+     "total": 21
+    },
+    "identify": {
+     "passed": 14,
+     "total": 14
+    },
+    "integrity": {
+     "passed": 16,
+     "total": 16
+    },
+    "smart": {
+     "passed": 15,
+     "total": 15
+    },
+    "vendor": {
+     "passed": 9,
+     "total": 9
+    },
+    "gcwl": {
+     "passed": 11,
+     "total": 11
+    },
+    "badblock": {
+     "passed": 13,
+     "total": 13
+    },
+    "readretry": {
+     "passed": 10,
+     "total": 10
+    },
+    "readdisturb": {
+     "passed": 4,
+     "total": 4
+    },
+    "powerloss": {
+     "passed": 21,
+     "total": 21
+    },
+    "compat": {
+     "passed": 19,
+     "total": 19
+    },
+    "thermal": {
+     "passed": 12,
+     "total": 12
+    },
+    "features": {
+     "passed": 11,
+     "total": 11
+    },
+    "nand_protocol": {
+     "passed": 1,
+     "total": 1
+    }
+   },
+   "cost_usd": 2.04,
+   "wall_min": 7.1,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V4@rekit_v3_oracle/r1"
+  },
+  {
+   "sample": "s4",
+   "variant": "V4",
+   "rep": 2,
+   "kit_method": "rekit_v3_oracle",
+   "tk_score": 1.0,
+   "code_score": 1.0,
+   "score": 1.0,
+   "passed": 178,
+   "total": 178,
+   "categories": {
+    "build": {
+     "passed": 1,
+     "total": 1
+    },
+    "cmd": {
+     "passed": 21,
+     "total": 21
+    },
+    "identify": {
+     "passed": 14,
+     "total": 14
+    },
+    "integrity": {
+     "passed": 16,
+     "total": 16
+    },
+    "smart": {
+     "passed": 15,
+     "total": 15
+    },
+    "vendor": {
+     "passed": 9,
+     "total": 9
+    },
+    "gcwl": {
+     "passed": 11,
+     "total": 11
+    },
+    "badblock": {
+     "passed": 13,
+     "total": 13
+    },
+    "readretry": {
+     "passed": 10,
+     "total": 10
+    },
+    "readdisturb": {
+     "passed": 4,
+     "total": 4
+    },
+    "powerloss": {
+     "passed": 21,
+     "total": 21
+    },
+    "compat": {
+     "passed": 19,
+     "total": 19
+    },
+    "thermal": {
+     "passed": 12,
+     "total": 12
+    },
+    "features": {
+     "passed": 11,
+     "total": 11
+    },
+    "nand_protocol": {
+     "passed": 1,
+     "total": 1
+    }
+   },
+   "cost_usd": 1.86,
+   "wall_min": 6.6,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V4@rekit_v3_oracle/r2"
+  },
+  {
+   "sample": "s4",
+   "variant": "V5",
+   "rep": 1,
+   "kit_method": "rekit_v3_oracle",
+   "tk_score": 1.0,
+   "code_score": 1.0,
+   "score": 1.0,
+   "passed": 178,
+   "total": 178,
+   "categories": {
+    "build": {
+     "passed": 1,
+     "total": 1
+    },
+    "cmd": {
+     "passed": 21,
+     "total": 21
+    },
+    "identify": {
+     "passed": 14,
+     "total": 14
+    },
+    "integrity": {
+     "passed": 16,
+     "total": 16
+    },
+    "smart": {
+     "passed": 15,
+     "total": 15
+    },
+    "vendor": {
+     "passed": 9,
+     "total": 9
+    },
+    "gcwl": {
+     "passed": 11,
+     "total": 11
+    },
+    "badblock": {
+     "passed": 13,
+     "total": 13
+    },
+    "readretry": {
+     "passed": 10,
+     "total": 10
+    },
+    "readdisturb": {
+     "passed": 4,
+     "total": 4
+    },
+    "powerloss": {
+     "passed": 21,
+     "total": 21
+    },
+    "compat": {
+     "passed": 19,
+     "total": 19
+    },
+    "thermal": {
+     "passed": 12,
+     "total": 12
+    },
+    "features": {
+     "passed": 11,
+     "total": 11
+    },
+    "nand_protocol": {
+     "passed": 1,
+     "total": 1
+    }
+   },
+   "cost_usd": 1.95,
+   "wall_min": 12.3,
+   "audit": 0,
+   "dir": "/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad/exp/redev/s4/V5@rekit_v3_oracle/r1"
   }
  ]
 }
