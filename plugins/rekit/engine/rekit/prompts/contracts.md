@@ -16,10 +16,14 @@ DB schemas/DDL owned by a DBA, file/message/on-media formats, protocol/command l
 2. Make every contract IF exact in its code-level form: verbatim prototypes/signatures with parameter and return types,
    constants and their values, struct/record layouts (field order, types, sizes, offsets, packing), header/file names
    and include paths, script names and arguments.
-3. Copy contract source files that the outside world compiles against or invokes, verbatim, into
-   `kit/03_interfaces/files/<original relative path>` (e.g. a public API header, HAL headers, DDL, a run script that is
-   the operations contract) — `cp` them, do not retype. Reference each copied file from its IF ("원문: files/…").
-   Do not copy implementation files.
+3. Copy, verbatim, ONLY the boundary files that a party outside the system compiles against, implements or invokes
+   (e.g. the public/host API header, HAL/driver interface headers, a DBA-owned DDL, the run script of the operations
+   contract) into `kit/03_interfaces/files/<original relative path>` — `cp` them, do not retype — and reference each
+   from its IF ("원문: files/…"). Do NOT copy internal headers or files even if a boundary file includes them or the
+   legacy build uses them (configuration/build-flag headers, profile/constant tables, logging, utility/type headers,
+   internal on-media structure headers, Makefiles, simulators): copying them hands the legacy decomposition to the
+   implementer. Instead state in the IF exactly what the outside needs from them (a type's definition, a constant's
+   value, a persisted layout field by field). Never copy implementation (.c/.java/…) files.
 4. When you are not sure whether a boundary may change, keep it exact and add a question to
    `.rekit/questions/contracts.json` (JSON array, kitspec format).
 Write `.rekit/contracts_report.json`: [{"if": "IF-…", "boundary": "...", "decision": "contract|internal",

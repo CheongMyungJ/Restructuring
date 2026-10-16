@@ -27,7 +27,7 @@ CONTRACTS = {'s3': [], 's4': ['fw_api.h', 'hal/*.h', 'hal_nand.h', 'hal_timer.h'
 # firmware core only: the hidden harness links the firmware library; simulator/CLI tools and the ASIC BSP are not part
 # of it (their interfaces are dev-tool contracts the golden tests drive), so S4 also gets an LSS without them
 CORE_EXTRA = {'s3': [], 's4': ['platform/*', 'sim/*', 'tools/*', 'sim_*.c', 'sim.h', 'ssdcli.c', 'imgdump.c']}
-KIT_LABEL = {'rekit_v2': 'F2 현행', 'rekit_v3': 'F3.0 신규(1차)', 'rekit_v3c': 'F3.1 신규(계약 경계 점검 추가)', 'rekit_v3d': 'F3.2 신규(구조 점검 계약 고정)'}
+KIT_LABEL = {'rekit_v2': 'F2 현행', 'rekit_v3': 'F3.0 신규(1차)', 'rekit_v3c': 'F3.1 신규(계약 경계 점검 추가)', 'rekit_v3e': 'F3.2 신규(계약 동봉 축소 + 구조 점검 고정)'}
 KIT_LABEL.update({k + '@': v for k, v in KIT_LABEL.items()})
 
 
@@ -44,7 +44,7 @@ def redev_rows():
         if d['sample'] not in LEGACY:
             continue
         kit = kit_of(run)
-        if kit not in ('-', 'rekit_v2', 'rekit_v3', 'rekit_v3c', 'rekit_v3d'):
+        if kit not in ('-', 'rekit_v2', 'rekit_v3', 'rekit_v3c', 'rekit_v3e'):
             continue
         sc = reports.load(os.path.join(run, 'score.json'))
         if sc.get('error'):
