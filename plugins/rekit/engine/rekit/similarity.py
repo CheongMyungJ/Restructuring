@@ -16,7 +16,7 @@ Metrics (each 0..1, higher = closer to the legacy structure):
 Contract files (e.g. a host API header the new code must keep byte-identical) are excluded on both sides and their
 identifiers are not counted as reuse: preserving a contract is required, not structural dependence.
 """
-import fnmatch, hashlib, os, re
+import fnmatch, hashlib, os, re, sys
 
 CODE_EXT = {'.c': 'c', '.h': 'c', '.cc': 'c', '.cpp': 'c', '.cxx': 'c', '.hpp': 'c', '.hh': 'c',
             '.java': 'java', '.kt': 'java', '.scala': 'java', '.cs': 'java', '.go': 'c', '.rs': 'c',
@@ -40,6 +40,13 @@ TOKEN_RE = re.compile(r'''
   | (?P<id>[A-Za-z_$][A-Za-z0-9_$]*)
   | (?P<op>->|::|<<=|>>=|<<|>>|<=|>=|==|!=|&&|\|\||\+\+|--|[-+*/%&|^!~<>=?:;,.(){}\[\]@#])
 ''', re.X)
+# a '{' preceded by one of these (between the signature's ')' and the '{') opens a type, not a function body
+TYPE_KW = {'class', 'interface', 'enum', 'record', 'struct', 'union', 'extends', 'implements', 'object', 'trait',
+           'impl', 'namespace'}
+# tokens allowed between a signature's ')' and its '{': qualifiers, throws lists, trailing return types (TS/Kotlin
+# `): T`, Rust `-> T`, Go `(T, error)` is handled separately), generics and pointer/reference marks
+SIG_TAIL_OPS = {'throws', 'const', 'noexcept', 'override', 'final', 'mut', ',', '.', ':', '::', '->', '<', '>', '?',
+                '*', '&', '[', ']', '!'}
 CLONE_K = 20
 SHINGLE_K = 5
 MIN_FUNC_TOKENS = 40
@@ -163,15 +170,28 @@ class SourceFile:
         return funcs
 
     def _close_paren_before(self, i):
-        """Index of the ')' that ends a signature right before '{' at i (skipping throws/const/annotations)."""
+        """Index of the ')' that ends a signature right before '{' at i, skipping qualifiers and trailing return
+        types; None when the '{' opens anything else (a type body, an initializer, a lambda, a control block)."""
         t, j = self.tokens, i - 1
         while j >= 0 and t[j][1] != ')':
-            if t[j][1] in (';', '{', '}', '=', '->', ']') or t[j][0] in ('str', 'num'):
-                return None
-            if t[j][1] not in ('throws', 'const', 'noexcept', 'override', ',', '.') and t[j][0] != 'id':
+            k, v = t[j]
+            if k in ('str', 'num') or (k == 'op' and v not in SIG_TAIL_OPS) or v in TYPE_KW:
                 return None
             j -= 1
         return j if j >= 0 else None
+
+    def _open_paren(self, j):
+        """Index of the '(' matching the ')' at j (or -1)."""
+        t, depth = self.tokens, 0
+        while j >= 0:
+            if t[j][1] == ')':
+                depth += 1
+            elif t[j][1] == '(':
+                depth -= 1
+                if depth == 0:
+                    return j
+            j -= 1
+        return -1
 
     def _is_func_open(self, i):
         return self._func_name(i) is not None
@@ -181,28 +201,28 @@ class SourceFile:
         j = self._close_paren_before(i)
         if j is None:
             return None
-        depth = 0
-        while j >= 0:
-            if t[j][1] == ')':
-                depth += 1
-            elif t[j][1] == '(':
-                depth -= 1
-                if depth == 0:
-                    break
-            j -= 1
-        if j <= 0 or t[j - 1][0] != 'id' or t[j - 1][1] in CONTROL:
+        j = self._open_paren(j)
+        if j > 0 and t[j - 1][1] == ')':          # Go multiple results: name(params) (T1, T2) {
+            j = self._open_paren(j - 1)
+        if j <= 0 or t[j - 1][0] != 'id' or t[j - 1][1] in CONTROL or t[j - 1][1] in TYPE_KW:
             return None
-        if j >= 2 and t[j - 2][1] in ('new', '.', '->'):
-            return None
+        if j >= 2 and (t[j - 2][1] in ('new', '.', '->', '@') or t[j - 2][1] in TYPE_KW):
+            return None                           # constructor call body, annotation args, record/class header
         return t[j - 1][1]
 
     def _py_functions(self, text):
         lines = text.splitlines()
         funcs, i = [], 0
         while i < len(lines):
-            m = re.match(r'^(\s*)def\s+(\w+)\s*\(', lines[i])
+            m = re.match(r'^(\s*)(?:async\s+)?def\s+(\w+)\s*\(', lines[i])
             if m:
-                ind, j = len(m.group(1)), i + 1
+                ind, k, depth = len(m.group(1)), i, 0
+                while k < len(lines):             # the signature may span lines (black puts '):' at def indent)
+                    depth += lines[k].count('(') + lines[k].count('[') - lines[k].count(')') - lines[k].count(']')
+                    if depth <= 0 and lines[k].rstrip().endswith(':'):
+                        break
+                    k += 1
+                j = k + 1
                 while j < len(lines) and (not lines[j].strip() or len(lines[j]) - len(lines[j].lstrip()) > ind):
                     j += 1
                 funcs.append((m.group(2), normalized(tokenize('\n'.join(lines[i:j])))))
@@ -212,7 +232,23 @@ class SourceFile:
         return funcs
 
 
+def is_contract(rel, contract_globs):
+    """A contract glob names a file by its path in the legacy tree (e.g. 'include/fw_api.h' or 'hal/*.h'); match it
+    at any depth and, when its file-name part has no wildcard, by file name alone — the new code may place the same
+    contract file in another directory."""
+    base = rel.rsplit('/', 1)[-1]
+    for g in contract_globs:
+        gbase = g.rsplit('/', 1)[-1]
+        if fnmatch.fnmatch(rel, g) or fnmatch.fnmatch(rel, '*/' + g) or fnmatch.fnmatch(base, g):
+            return True
+        if not any(c in gbase for c in '*?[') and base == gbase:
+            return True
+    return False
+
+
 def collect(root, contract_globs=(), exclude_tests=True):
+    if not os.path.isdir(root):
+        raise ValueError(f'not a directory: {root}')
     files, contract = [], []
     for dp, dn, fs in os.walk(root):
         dn[:] = sorted(d for d in dn if d not in SKIP_DIRS and not d.startswith('.'))
@@ -222,7 +258,7 @@ def collect(root, contract_globs=(), exclude_tests=True):
             rel = os.path.relpath(os.path.join(dp, f), root).replace(os.sep, '/')
             if exclude_tests and TEST_FILE.search(f):
                 continue
-            if any(fnmatch.fnmatch(rel, g) or fnmatch.fnmatch(f, g) for g in contract_globs):
+            if is_contract(rel, contract_globs):
                 contract.append(rel)
                 continue
             files.append(rel)
@@ -241,6 +277,10 @@ def compare(legacy_root, new_root, contract_globs=(), detail=False):
     """Structural similarity of new_root to legacy_root. Contract globs match paths (or basenames) on both sides."""
     lfiles, lcontract = collect(legacy_root, contract_globs)
     nfiles, ncontract = collect(new_root, contract_globs)
+    for root, fs in ((legacy_root, lfiles), (new_root, nfiles)):
+        if not fs:      # a wrong path or a tree with only skipped dirs must not read as "independent"
+            raise ValueError(f'no source files to compare under {root} (supported: {", ".join(sorted(set(CODE_EXT)))}; '
+                             f'skipped dirs: {", ".join(sorted(SKIP_DIRS))})')
     L = [SourceFile(legacy_root, r) for r in lfiles]
     N = [SourceFile(new_root, r) for r in nfiles]
     cids = {norm_name(x) for x in contract_identifiers(legacy_root, lcontract)}
@@ -369,23 +409,35 @@ def main(argv=None):
     ap.add_argument('--contract', action='append', default=[], help='contract file glob kept unchanged on purpose')
     ap.add_argument('--json', action='store_true'); ap.add_argument('--detail', action='store_true')
     a = ap.parse_args(argv)
-    kit = kit_contract_globs(__file__) if os.path.basename(os.path.dirname(os.path.abspath(__file__))) == 'tools' else []
-    official = kit or a.contract
-    r = compare(a.legacy, a.new, official, detail=a.detail)
+    in_kit = os.path.basename(os.path.dirname(os.path.abspath(__file__))) == 'tools'
+    kit = kit_contract_globs(__file__) if in_kit else []
+    official = kit if in_kit else a.contract      # inside a kit the contract list is the kit's, even when empty
+    try:
+        r = compare(a.legacy, a.new, official, detail=a.detail)
+    except ValueError as e:
+        print(f'오류: {e}', file=sys.stderr)
+        return 2
     extra = [c for c in a.contract if c not in official]
+
+    def reference():
+        try:
+            return compare(a.legacy, a.new, official + extra)
+        except ValueError:          # the extra exclusions removed every file
+            return None
     if a.json:
         if extra:
-            r['reference_with_extra_contracts'] = {k: v for k, v in compare(a.legacy, a.new, official + extra).items()
-                                                   if k != 'detail'}
+            x = reference()
+            r['reference_with_extra_contracts'] = {k: v for k, v in x.items() if k != 'detail'} if x else None
         print(json.dumps(r, ensure_ascii=False, indent=1))
         return 0
-    if kit:
+    if in_kit:
         print(f"계약 파일(키트 03_interfaces/files 기준, 고정): {len(kit)}개")
     print(format_report(r))
     print(verdict(r))
     if extra:
-        x = compare(a.legacy, a.new, official + extra)
-        print(f"\n[참고용, 판정에 쓰지 않음] 추가 제외 {extra} 적용 시 LSS {x['LSS']} — 키트가 계약으로 정하지 않은 "
+        x = reference()
+        shown = f"LSS {x['LSS']}" if x else '비교할 소스가 남지 않음'
+        print(f"\n[참고용, 판정에 쓰지 않음] 추가 제외 {extra} 적용 시 {shown} — 키트가 계약으로 정하지 않은 "
               f"파일을 제외하면 구조 유사도가 가려진다")
     if a.detail:
         print('\n레거시와 대응하는 함수 (레거시 파일:함수 -> 신규 파일:함수, 유사도):')

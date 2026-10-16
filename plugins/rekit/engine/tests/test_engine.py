@@ -212,7 +212,17 @@ class EngineTests(unittest.TestCase):
         os.makedirs(os.path.join(kit, 'legacy_ref'), exist_ok=True)
         open(os.path.join(kit, 'legacy_ref', 'structure_issues.md'), 'w').write('### LP-001 global state')
         open(os.path.join(kit, '00_overview.md'), 'w').write('overview')
-        calls = []
+        os.makedirs(os.path.join(kit, '07_tests'))
+        open(os.path.join(kit, '07_tests', 'README.md'), 'w').write('compare rules')
+        open(os.path.join(kit, 'README.md'), 'w').write('implementer entry')
+        os.makedirs(os.path.join(rk, 'questions'), exist_ok=True)
+        json.dump([{'id': 'Q-GC-01', 'kind': 'question', 'priority': 'important', 'question': '정책?',
+                    'context': 'gc_run() in src/ftl.c:3', 'assumption': 'greedy'}],
+                  open(os.path.join(rk, 'questions', 'q.json'), 'w'))
+        qs = QuestionStore(ws)
+        qs.ingest_file(os.path.join(rk, 'questions', 'q.json'), 'unit')
+        qs.save()
+        calls, seen = [], {}
 
         def fake(prompt, cwd, log_path, **k):
             calls.append({'prompt': prompt, 'cwd': cwd, **k})
@@ -224,6 +234,9 @@ class EngineTests(unittest.TestCase):
                 json.dump({f'BR-{cap[4:]}-001': {'file': 'kit/05_behavior/' + cap + '.md', 'src': ['code:src/ftl.c:3']}},
                           open(os.path.join(cwd, '.rekit', 'notes', 'spec', cap + '.trace.json'), 'w'))
             if 'TARGET DESIGN' in prompt:
+                seen['tests_readme'] = os.path.exists(os.path.join(cwd, '07_tests', 'README.md'))
+                seen['root_readme'] = os.path.exists(os.path.join(cwd, 'README.md'))
+                seen['questions'] = open(os.path.join(cwd, '09_open_questions.md')).read()
                 os.makedirs(os.path.join(cwd, 'design'))
                 open(os.path.join(cwd, 'design', 'architecture.md'), 'w').write(
                     'saw legacy_ref: %s, issues: %s' % (os.path.exists(os.path.join(cwd, 'legacy_ref')),
@@ -251,6 +264,44 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(open(os.path.join(kit, 'design', 'architecture.md')).read(),
                          'saw legacy_ref: False, issues: ### LP-001 global state')
         self.assertFalse(os.path.exists(os.path.join(rk, 'design_box')))
+        self.assertTrue(seen['tests_readme'])                                 # test comparison rules reach the design
+        self.assertFalse(seen['root_readme'])
+        self.assertIn('greedy', seen['questions'])                            # assumptions yes ...
+        self.assertNotIn('src/ftl.c', seen['questions'])                      # ... code-citing background no
+
+    def test_specify_heading_match_and_unassigned_sections(self):
+        from rekit import pipeline as pl
+        ws = self._ws_after_inventory('work8')
+        rk = os.path.join(ws, '.rekit')
+        json.dump({'units': [{'id': 'GC', 'files': ['code:src/ftl.c']}],
+                   'capabilities': [{'id': 'CAP-IO', 'area': 'IO', 'units': []},
+                                    {'id': 'CAP-IO-DMA', 'area': 'IODMA', 'units': []}]},
+                  open(os.path.join(rk, 'units.json'), 'w'))
+        os.makedirs(os.path.join(rk, 'notes', 'GC'))
+        open(os.path.join(rk, 'notes', 'GC', 'behavior.md'), 'w').write('## CAP-IO-DMA\nx\n')
+        prompts = []
+
+        def fake(prompt, cwd, log_path, **k):
+            prompts.append(prompt)
+            cap = re.search(r'capability (CAP-[\w-]+)', prompt).group(1)
+            os.makedirs(os.path.join(cwd, 'kit', '05_behavior'), exist_ok=True)
+            open(os.path.join(cwd, 'kit', '05_behavior', cap + '.md'), 'w').write('spec')
+            return {'result': 'ok', 'structured': None, 'cost_usd': 0.0, 'wall_s': 0.1, 'num_turns': 1,
+                    'session_id': 'x', 'is_error': False, 'timed_out': False}
+        orig = pl.run_claude
+        pl.run_claude = fake
+        try:
+            Pipeline(ws, log=lambda *a: None).p_specify()
+            io_prompt = next(p for p in prompts if 'capability CAP-IO:' in p)
+            self.assertNotIn('.rekit/notes/GC/behavior.md', io_prompt)       # CAP-IO is not a prefix match of CAP-IO-DMA
+            open(os.path.join(rk, 'notes', 'GC', 'behavior.md'), 'a').write('## CAP-NEW: 온도\ny\n')
+            st = json.load(open(os.path.join(rk, 'state.json'))); st['caps'] = {}
+            json.dump(st, open(os.path.join(rk, 'state.json'), 'w'))
+            with self.assertRaises(RuntimeError):                            # unassigned behavior must not be dropped
+                Pipeline(ws, log=lambda *a: None).p_specify()
+            self.assertIn('CAP-NEW', json.load(open(os.path.join(rk, 'unassigned_notes.json'))))
+        finally:
+            pl.run_claude = orig
 
 
 if __name__ == '__main__':

@@ -19,8 +19,11 @@ write them here. Write / complete:
 4. Capabilities: review the capability list against all `behavior.md` notes (incl. `CAP-NEW` proposals). Update
    `.rekit/units.json` → "capabilities" so that every note section maps to exactly one existing capability (merge or
    add capabilities as needed; keep ids stable when possible; each entry keeps "id", "area", "title",
-   "description", "units"). If you rename/merge a capability, write the mapping old→new into
-   `.rekit/capability_map.json` ({"CAP-OLD": "CAP-NEW"}; `{}` if none).
+   "description", "units"). Every `## CAP-NEW: <proposal>` section in a unit's `behavior.md` must end up under a
+   real capability: edit that heading in the note to the capability id it now belongs to (proposals of different units
+   may go to different capabilities). If you rename/merge an existing capability id, write the mapping old→new into
+   `.rekit/capability_map.json` ({"CAP-OLD": "CAP-X"}; `{}` if none). The engine refuses to continue while a
+   `## CAP-…` note heading matches no capability (it would silently drop that behavior).
 5. `kit/07_tests/README.md` — how tests are organized (`vectors/CAP-*.md` filled next phase, `golden/` from running
    the legacy) and the comparison rules.
 6. Legacy reference: `kit/legacy_ref/README.md` (usage rule: reference only — consult it for a specific spec ID via

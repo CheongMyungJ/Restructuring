@@ -18,7 +18,9 @@ sys.path.insert(0, os.path.join(HERE, '..', 'plugins', 'rekit', 'engine'))
 import reports  # noqa: E402
 from rekit import similarity, neutrality  # noqa: E402
 
-SP = os.environ.get('SP', '/tmp/claude-0/-home-user-Restructuring/9ce942c0-92ed-588d-ab07-51fb1b42752f/scratchpad')
+SP = os.environ.get('SP')
+if not SP:
+    sys.exit('set SP to the experiment work root used by exp1.py (export SP=/path/to/work), see experiments/README.md')
 EXP = os.path.join(SP, 'exp')
 OUT = os.path.join(HERE, 'results')
 LEGACY = {'s3': os.path.join(SP, 'samples', 's3_tlog', 'legacy'), 's4': os.path.join(SP, 'samples', 's4_ssdfw', 'legacy')}
@@ -99,6 +101,8 @@ def fmt(x, pct=False):
 def main():
     os.makedirs(OUT, exist_ok=True)
     r, k = redev_rows(), kit_rows()
+    if not r and not k:     # wrong SP: do not overwrite committed results with empty tables
+        sys.exit(f'no kits or redevelopment runs under {EXP} — check SP')
     json.dump({'kits': k, 'redevelopment': r}, open(os.path.join(OUT, 'exp2_raw.json'), 'w'), ensure_ascii=False, indent=1)
     L = ['# Experiment 2 raw results — structure independence', '',
          'F2 = kit format of the previous engine (module-organized spec, faithful pseudo-code, src refs inline);',

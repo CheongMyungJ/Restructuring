@@ -118,5 +118,67 @@ public class Proc implements Runnable {
         self.assertIn('Proc', f.types)
 
 
+    def _funcs(self, name, text):
+        d = os.path.join(self.tmp, 'f')
+        write(d, {name: text})
+        return [n for n, _ in similarity.SourceFile(d, name).functions]
+
+    def test_annotated_java_class_and_record_keep_their_methods(self):
+        self.assertEqual(self._funcs('C.java', '@RequestMapping("/api")\n@Table(name = "T")\npublic class Ctl extends B '
+                                     'implements I {\n int a(int x){ return x+1; }\n int b(){ return 2; }\n}\n'), ['a', 'b'])
+        self.assertEqual(self._funcs('R.java', 'public record Foo(int x) {\n int twice(){ return x*2; }\n}\n'), ['twice'])
+
+    def test_trailing_return_types(self):
+        self.assertEqual(self._funcs('a.ts', 'export function foo(a: number): Promise<number> { return a; }\n'
+                                     'const f = (a) => { return a; };\n'), ['foo'])
+        self.assertEqual(self._funcs('a.kt', 'class K(val x: Int) {\n fun foo(a: Int): Int { return a }\n}\n'), ['foo'])
+        self.assertEqual(self._funcs('a.rs', 'fn foo(a: i32) -> i32 { a + 1 }\n'), ['foo'])
+        self.assertEqual(self._funcs('a.go', 'func f(a int) (int, error) { return a, nil }\n'), ['f'])
+        self.assertEqual(self._funcs('a.c', 'int f(int a) { if (a) { return 1; } return 0; }\n'
+                                     'static const int t[] = { 1, 2 };\n'), ['f'])
+
+    def test_python_multiline_signature_keeps_body(self):
+        d = os.path.join(self.tmp, 'p')
+        write(d, {'a.py': 'def foo(\n    a,\n    b,\n):\n    x = a + b\n    y = x * 2\n    return x * y\n'})
+        (name, body), = similarity.SourceFile(d, 'a.py').functions
+        self.assertEqual(name, 'foo')
+        self.assertIn('return', body)
+
+    def test_missing_or_empty_tree_is_an_error_not_a_pass(self):
+        with self.assertRaises(ValueError):
+            similarity.compare(os.path.join(self.tmp, 'nope'), self.legacy)
+        empty = os.path.join(self.tmp, 'empty')
+        write(empty, {'build/x.c': 'int f(void){return 0;}', 'README.md': 'x'})
+        with self.assertRaises(ValueError):
+            similarity.compare(self.legacy, empty)
+
+    def test_contract_glob_matches_at_other_depth(self):
+        new = os.path.join(self.tmp, 'new')
+        write(new, {'api/api.h': API_H, 'core/pool.c': POOL_C})
+        r = similarity.compare(self.legacy, new, ['include/api.h'])
+        self.assertEqual(r['legacy']['contract_files'], ['api.h'])
+        self.assertEqual(r['new']['contract_files'], ['api/api.h'])
+        self.assertFalse(similarity.is_contract('src/hal_x.h', ['hal/*.h']))
+        self.assertTrue(similarity.is_contract('src/hal/x.h', ['hal/*.h']))
+
+    def test_kit_tool_contract_list_is_fixed_even_when_empty(self):
+        import contextlib, io, shutil as sh
+        kit = os.path.join(self.tmp, 'kit')
+        os.makedirs(os.path.join(kit, 'tools'))
+        sh.copy(similarity.__file__, os.path.join(kit, 'tools', 'structure_check.py'))
+        sys.path.insert(0, os.path.join(kit, 'tools'))
+        try:
+            import structure_check
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                structure_check.main([self.legacy, self.legacy, '--contract', '*'])
+        finally:
+            sys.path.pop(0)
+        text = out.getvalue()
+        self.assertIn('LSS (레거시 구조 유사도) 100.0', text)     # '*' did not become the official contract list
+        self.assertIn('판정: 미달', text)
+        self.assertIn('참고용', text)
+
+
 if __name__ == '__main__':
     unittest.main()

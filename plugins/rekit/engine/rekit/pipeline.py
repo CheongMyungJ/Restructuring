@@ -15,6 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PHASES = ['inventory', 'survey', 'units', 'synthesize', 'specify', 'gate1', 'characterize', 'review', 'contracts',
           'gate2', 'neutralize', 'design', 'finalize']
 NEEDS_HUMAN = 10
+FIX_BATCH_GAPS = 40        # review gaps per fix session (one session per capability batch keeps the context bounded)
 
 DEFAULT_CONFIG = {
     'project': 'legacy-system',
@@ -297,10 +298,21 @@ class Pipeline:
         os.makedirs(os.path.join(self.rk, 'notes', 'spec'), exist_ok=True)
         self.state.setdefault('caps', {})
         todo = [c for c in caps if self.state['caps'].get(c['id']) != 'done']
+        known = {c['id'] for c in caps} | {a for olds in aliases.values() for a in olds}
+        orphan = {}
+        for n in notes:
+            for h in re.findall(r'^##\s+(CAP-[\w-]+)', read_text(n, ''), re.M):
+                if h not in known:
+                    orphan.setdefault(h, []).append(os.path.relpath(n, self.ws))
+        if orphan:      # behavior no specify session would receive: synthesis must map it (capability_map/headings)
+            write_json(os.path.join(self.rk, 'unassigned_notes.json'), orphan)
+            raise RuntimeError(f'note sections without a capability: {sorted(orphan)} — map them in '
+                               f'.rekit/capability_map.json or rename the headings, then `rekit run` again '
+                               f'(details: .rekit/unassigned_notes.json)')
 
         def work(c):
             heads = [c['id']] + aliases.get(c['id'], [])
-            pat = re.compile(r'^##\s+(' + '|'.join(map(re.escape, heads)) + r')\b', re.M)
+            pat = re.compile(r'^##\s+(' + '|'.join(map(re.escape, heads)) + r')(?![\w-])', re.M)
             mine = [os.path.relpath(n, self.ws) for n in notes if pat.search(read_text(n, ''))]
             units = set(c.get('units') or [])
             mine += [f'.rekit/notes/{u}/behavior.md' for u in sorted(units)
@@ -494,14 +506,22 @@ class Pipeline:
 
         # Fix gaps in batches (one session per subsystem group, SYS gaps first), sequentially: fixes edit shared
         # interface/data files, and one session per batch keeps the context and avoids conflicting edits.
-        group_of = {c['id']: 'CAP' for c in caps}
-        batches = {}
+        # one fix session per batch: SYS alone, capabilities packed in id order up to FIX_BATCH_GAPS gaps per batch
+        # (deterministic, so a resumed run maps the same gaps to the same batch keys)
+        batches, cur, n = {}, None, 0
         for aid, _ in areas:
             gp = os.path.join(rv, f'gaps_{aid}.json')
             gaps = [g for g in (read_json(gp) or []) if g.get('severity') in ('blocking', 'important')]
-            if gaps:
-                key = 'SYS' if aid == 'SYS' else group_of.get(aid, 'ALL')
-                batches.setdefault(key, []).extend(gaps)
+            if not gaps:
+                continue
+            if aid == 'SYS':
+                batches['SYS'] = gaps
+                continue
+            if cur is None or len(batches[cur]) + len(gaps) > FIX_BATCH_GAPS:
+                n += 1
+                cur = f'CAP{n}'
+                batches[cur] = []
+            batches[cur].extend(gaps)
         for key in sorted(batches, key=lambda k: (k != 'SYS', k)):
             if os.path.exists(os.path.join(rv, f'fixed_{key}.json')):
                 continue
@@ -531,8 +551,17 @@ class Pipeline:
         """Clean-room target design: the session sees only the legacy-neutral spec, intake and the LP-* problem list."""
         box = os.path.join(self.rk, 'design_box')
         shutil.rmtree(box, ignore_errors=True)
-        shutil.copytree(self.kit, box, ignore=shutil.ignore_patterns('legacy_ref', 'trace.json', 'design', 'golden',
-                                                                      '10_plan.md', 'README.md'))
+        kit_root = os.path.abspath(self.kit)
+
+        def leave_out(d, names):
+            out = {n for n in names if n in ('legacy_ref', 'trace.json', 'design', 'golden')}
+            if os.path.abspath(d) == kit_root:     # root files only: 07_tests/README.md stays (test comparison rules)
+                out |= {n for n in names if n in ('10_plan.md', 'README.md', '09_open_questions.md')}
+            return out
+
+        shutil.copytree(self.kit, box, ignore=leave_out)
+        # open questions without their code-citing background: the assumptions matter, the legacy excerpts must not
+        QuestionStore(self.ws).render_markdown(os.path.join(box, '09_open_questions.md'), include_context=False)
         shutil.copy2(os.path.join(self.rk, 'prompts', 'kitspec.md'), os.path.join(box, 'kitspec.md'))
         os.makedirs(os.path.join(box, 'inputs'), exist_ok=True)
         write_text(os.path.join(box, 'inputs', 'intake.md'), read_text(os.path.join(self.rk, 'intake.md'), '(none)'))
