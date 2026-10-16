@@ -23,8 +23,7 @@ DEFAULT_CONFIG = {
     'language': 'Korean',
     'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'specify': 'opus',
                'characterize': 'opus', 'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'contracts': 'opus',
-               'neutralize': 'opus',
-               'design': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
+               'neutralize': 'opus', 'design': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
     'parallel': 4,
     'unit_tokens': 20000,             # small focused units → more precise specs (S2: 95% vs 91% with one big unit)
     'group_synthesis_min_units': 9,   # hierarchical synthesis when there are more units than this
