@@ -1,59 +1,106 @@
-# Redevelopment Kit specification (shared by every rekit phase)
+# Redevelopment Kit specification v3 (shared by every rekit phase)
 
-The **kit** is the complete, precise knowledge package that lets an implementing AI agent re-implement the legacy system
-in a new stack **without reading the legacy source**, while preserving every externally observable behavior that
-matters. It is also the place where human knowledge (decisions, production facts) is recorded.
+The **kit** is the complete, precise knowledge package that lets an implementing AI agent **redesign and re-implement**
+the legacy system in a new stack while preserving every externally observable behavior that matters. It also records
+human knowledge (decisions, production facts).
+
+The kit has THREE layers. Keeping them apart is the core rule of this format: the implementer must get the full
+**WHAT** (behavior, contracts) without being handed the legacy **HOW** (module structure, function decomposition,
+internal names, code-shaped algorithms) as its template — otherwise the new system silently becomes a port of the old.
+
+| layer | content | who reads it |
+|---|---|---|
+| **spec** (kit root, `00`–`09`) | legacy-NEUTRAL: what the system must do, observable through its contracts | implementer: always |
+| **design/** | the TARGET design, made clean-room from the spec (never from legacy code) | implementer: always |
+| **legacy_ref/** | how the legacy does it: structure, internal algorithms as pseudo-code, internal names, src refs | implementer: only to resolve a specific ambiguity; never as a structural template |
 
 ## Language
-Prose in **{{LANG}}**. Identifiers, literals, file/column/field names, byte layouts, SQL, messages, log strings and code
-snippets stay verbatim (original language/case/spaces).
+Prose in **{{LANG}}**. Contract identifiers and literals (API/ABI names, file/column/field names, byte layouts, SQL that
+is part of a contract, messages, log strings consumed by others) stay verbatim.
 
 ## Layout
 ```
 kit/
-  README.md                 # entry point for the implementing AI: reading order, conventions, how to use tests/plan
-  00_overview.md            # purpose, scope (in/out), system context (actors, external systems, hardware), features, key flows
-  01_glossary.md            # term | code identifiers | meaning   (domain + technical)
-  02_architecture.md        # components, execution/runtime model (tasks/threads/jobs/ISRs/main loop), dependencies,
-                            # configuration/variants (build flags, profiles), legacy→suggested-new mapping
-  03_interfaces/IF-*.md     # one file per EXTERNAL contract, field/byte exact (see below)
-  04_data/DM-*.md           # persistent & core data structures/formats, invariants, lifecycle
-  05_behavior/<unit>.md     # per module/feature: rules, algorithms, state machines, error handling, edge cases
+  README.md                 # entry point: the three layers and their reading rules, must-preserve contracts, tests, plan
+  00_overview.md            # purpose, scope (in/out), system context (actors, external systems, hardware),
+                            # capability list CAP-*, end-to-end flows FL-* (external viewpoint)
+  01_glossary.md            # domain term | meaning | contract identifier (only if it is part of a contract)
+  02_constraints.md         # what the OUTSIDE imposes: runtime/call model required by contracts (who calls what, when,
+                            # threading/ISR constraints of the platform), production configuration values, build/variant
+                            # facts that change behavior (production values!), compatibility requirements
+  03_interfaces/IF-*.md     # one file per EXTERNAL contract, field/byte exact
+  04_data/DM-*.md           # persisted / shared data contracts (on-media formats, files, tables) + invariants
+  05_behavior/CAP-*.md      # one file per CAPABILITY (not per legacy module): rules, invariants, observable states,
+                            # errors, outcome-determining algorithms
   06_nfr.md                 # performance, memory/footprint, timing/real-time, reliability, security, operations
-  07_tests/                 # acceptance scenarios & test vectors; executable characterization tests if available
+  07_tests/                 # README, vectors/CAP-*.md (TV-*), golden/ (executable characterization from running legacy)
   08_decisions.md           # DEC-*: human-confirmed facts and decisions, quirks to preserve, things to drop/fix
   09_open_questions.md      # generated from questions.json: open items + the assumption currently applied
-  10_plan.md                # ordered implementation tasks with context packs and done criteria
-  trace.json                # { "<ID>": {"file": "kit/...", "src": ["path:L1-L2", ...], "confidence": "..."} }
+  10_plan.md                # implementation tasks ordered by TARGET design components, with context packs
+  design/
+    architecture.md         # components C-*, responsibilities, dependency rules, runtime model, data ownership,
+                            # contract boundary adapters
+    decisions.md            # ADR-*: alternatives, choice, reason; how each legacy structural problem LP-* is avoided
+    allocation.md           # every CAP/BR/INV/SM/ERR/ALG/IF/DM id -> exactly one owning component C-*
+  legacy_ref/               # REFERENCE ONLY
+    README.md               # usage rule: consult per ID via trace.json, do not mirror files/functions/names
+    structure.md            # legacy modules, runtime model, dependency graph, legacy module -> CAP mapping
+    structure_issues.md     # LP-*: structural problems of the legacy (global state, god modules, layer mixing, ...)
+    modules/<UNIT>.md       # per legacy module: internal algorithms as faithful pseudo-code, internal data structures,
+                            # constants, legacy identifiers, quirks, coverage table
+  trace.json                # { "<ID>": {"file": "kit/...", "src": ["<root>:<path>:L1-L2", ...], "confidence": "..."} }
 ```
 
 ## IDs
-`IF-<AREA>-NNN` interface, `DM-<AREA>-NNN` data, `BR-<AREA>-NNN` rule/behavior, `ALG-<AREA>-NNN` algorithm,
-`SM-<AREA>-NNN` state machine, `ERR-<AREA>-NNN` error behavior, `NFR-NNN`, `TV-<AREA>-NNN` test vector, `DEC-NNN`
-decision, `Q-NNN` question, `T-NNN` task. `<AREA>` is a short uppercase code of the module (e.g. GC, MAP, LOAD).
+Spec IDs are named after **capabilities/domain areas**, never after legacy modules or files:
+`CAP-<AREA>` capability, `BR-<AREA>-NNN` rule, `INV-<AREA>-NNN` invariant, `SM-<AREA>-NNN` observable state machine,
+`ERR-<AREA>-NNN` error behavior, `ALG-<AREA>-NNN` outcome-determining algorithm, `TV-<AREA>-NNN` test vector,
+`IF-<AREA>-NNN` interface, `DM-<AREA>-NNN` data contract, `FL-NNN` flow, `NFR-NNN`, `DEC-NNN`, `Q-…` question,
+`C-<NAME>` design component, `ADR-NNN` design decision, `LP-NNN` legacy structural problem, `T-NNN` task.
+`<AREA>` is a short uppercase domain code (e.g. READ, WRITE, SMART, LOAD, JUDGE) chosen in the survey; it must differ
+from the legacy unit ids. Legacy-ref items use `LR-<UNIT>-NNN`.
 Every ID appears exactly once as a heading `### <ID> <title>` and once in trace.json.
 
-## Tags (mandatory on every non-trivial statement / item)
-`(src: path:line-line)` source reference(s) relative to the code root; confidence: `[코드확인]` verified in code,
-`[실행확인]` verified by running legacy, `[문서]` only from materials, `[사람확인]` confirmed by a human, `[추정]` inferred.
-Mark each interface/behavior item as `계약(유지 필수)` (must be preserved: externally observable / compatibility) or
-`구현상세(변경 가능)` (internal; may be redesigned).
+## Tags
+Confidence on every non-trivial statement: `[코드확인]` verified in code, `[실행확인]` verified by running legacy,
+`[문서]` only from materials, `[사람확인]` confirmed by a human, `[추정]` inferred.
+Source references: in **legacy_ref/** write `(src: path:line-line)` inline. In the **spec** and **design** do NOT write
+source paths, legacy file names or line numbers; the source of a spec ID lives in `trace.json` only.
+Everything in the spec must be preserved by default; an item a human allowed to change/drop is tagged
+`[변경 허용: DEC-NNN]`.
+
+## The neutrality rule (spec and design)
+The spec describes behavior **as seen from outside the system boundary** (contracts, persisted data, observable
+outputs, timing, counters), in domain terms.
+- Do NOT mention legacy internal function/variable/type/macro/class/file names, legacy module or directory names,
+  legacy call chains, or "module X calls Y". Use domain terms (e.g. "the block with the fewest valid pages",
+  not `gc_select_victim()`; "the load step", not `TlogRecordReader`).
+- Contract identifiers ARE allowed verbatim (they are part of 03_interfaces/04_data): API functions/structs of a
+  contract header, file/column/table names, property/env names, command opcodes, on-media field names.
+- Rules are `condition → observable outcome` (with precedence, boundaries `<`/`<=`, rounding, overflow, empty/null,
+  duplicates, retries, idempotency/re-run, error paths), never "function f does …".
+- **Algorithms** belong in the spec only when the exact procedure determines an observable result (bit-exact output,
+  on-media placement, counter values, ordering of side effects that a contract exposes). Write them declaratively:
+  inputs, selection criteria and tie-breaks, formulas with constants, ordering constraints, and state WHICH observable
+  result depends on them (`결과 결정: …`). Do not transcribe the legacy control flow (loops, helper calls, flags) — that
+  goes to legacy_ref. If the exact step order matters, list the observable steps and say why.
+- Internal data structures, caches, helper decomposition, threading of the legacy implementation, logging that no one
+  consumes, and dead code belong in legacy_ref, not in the spec.
+- Apparent bugs and quirks that are observable ARE spec (flag them `quirk`, never silently fix): record them as rules.
 
 ## What "precise" means (checklist)
 - **Interfaces**: exact names/signatures/types/units; for files & messages: encoding, line endings, record/field order,
   offsets & lengths in bytes, padding/alignment, number formats (implied decimals, sign), date/time formats & time zone,
-  header/trailer rules, naming patterns, validation and rejection behavior; for DB: tables/columns/types/keys,
-  every SQL statement's semantics (filters, joins, ordering, locking, transaction boundaries, upsert/merge rules);
+  header/trailer rules, naming patterns, validation and rejection behavior; for DB: tables/columns/types/keys, the
+  semantics of every read/write (filters, joins, ordering, locking, transaction boundaries, upsert/merge rules);
   for protocols/HW: commands, fields, status codes, register/bit semantics, timing; for ops: CLI args, env vars,
-  config properties (+defaults), exit codes, logs consumed by others.
-- **Rules**: condition → outcome, including precedence/ordering, tie-breaks, boundary values (<, <=), rounding
-  (mode & scale), overflow, empty/null handling, duplicates, retries, idempotency/re-run behavior, error paths.
-- **Algorithms**: pseudo-code faithful to legacy incl. constants, magic numbers, loop bounds, quirks, apparent bugs
-  (flag them, do not silently fix), complexity guarantees.
-- **State**: state machines as tables (state, event, guard, action, next), persistence/recovery semantics,
-  concurrency (who runs when, shared data, locks, interrupt context).
+  config properties (+defaults and PRODUCTION values), exit codes, logs consumed by others.
+- **Rules**: condition → outcome incl. precedence/ordering, tie-breaks, boundary values, rounding (mode & scale),
+  overflow, empty/null handling, duplicates, retries, idempotency, error paths.
+- **State**: observable state machines as tables (state, event, guard, action, next), persistence/recovery semantics
+  (what survives a crash/power loss, what is replayed), concurrency guarantees visible from outside.
 - **Hazards**: doc-vs-code conflicts, environment/config-dependent behavior (system properties, env vars, build flags,
-  default timezone/locale/charset, DB/OS specifics), dead code, suspected bugs → recorded + question if a human must decide.
+  default timezone/locale/charset, DB/OS specifics), suspected bugs → recorded + question if a human must decide.
 - **Examples**: concrete input→output test vectors for every rule with edge cases.
 Forbidden: vague phrases like "handles errors appropriately", "processes the data", "etc." without the exact list.
 

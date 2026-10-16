@@ -5,7 +5,8 @@ Legacy code roots (read-only): {{CODE_ROOTS}}. New materials provided by the hum
 converted text is in `.rekit/materials_text/`.
 
 For each answered question:
-1. Update every affected kit file (rules, interfaces, data, tests, plan) so the kit reflects the answer. If the answer
+1. Update every affected kit file (rules, interfaces, data, tests, plan) so the kit reflects the answer, following the
+   three layers and the neutrality rule of kitspec.md (spec: observable terms only; legacy details: `kit/legacy_ref/`). If the answer
    says the production behavior differs from the code default (configuration, environment), the kit must state the
    PRODUCTION behavior as the requirement and keep the legacy default only as a note.
 2. Add a decision entry `### DEC-NNN <title>` to `kit/08_decisions.md` (create if missing; continue numbering):

@@ -1,5 +1,5 @@
 """Offline tests for rekit's deterministic parts (no AI calls). Run: python3 -m unittest discover -s tests"""
-import json, os, shutil, subprocess, sys, tempfile, unittest
+import json, os, re, shutil, subprocess, sys, tempfile, unittest
 
 ENGINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ENGINE)
@@ -161,12 +161,96 @@ class EngineTests(unittest.TestCase):
         ws = os.path.join(self.tmp, 'work3')
         subprocess.run(RK + ['init', ws, '--code', self.code, '--no-intake'], capture_output=True, text=True, check=True)
         p = Pipeline(ws)
-        for name, kw in (('survey.md', {'UNIT_TOKENS': 1}), ('unit_v2.md', {'UNIT_ID': 'GC', 'UNIT_TITLE': 't', 'FILES': '-', 'FOCUS': '', 'CHECKLIST': 'x'}),
+        for name, kw in (('survey.md', {'UNIT_TOKENS': 1}), ('unit_v2.md', {'UNIT_ID': 'GC', 'UNIT_TITLE': 't', 'FILES': '-', 'FOCUS': '', 'CHECKLIST': 'x', 'CAPS': 'CAP-SPACE'}),
+                         ('specify.md', {'CAP_ID': 'CAP-SPACE', 'CAP_TITLE': 't', 'AREA': 'SPACE', 'CAP_DESC': 'd', 'NOTES': 'n', 'ALIASES': ''}),
+                         ('neutralize.md', {}), ('design.md', {}),
                          ('synthesize_v2.md', {'SOURCES': 's'}), ('synthesize_group.md', {'GROUP_ID': 'G', 'GROUP_TITLE': 't', 'UNITS': 'GC'}),
                          ('characterize.md', {}), ('integrate.md', {}), ('review_v2.md', {'AREA': 'GC', 'AREA_ID': 'GC', 'FILES': 'f'}),
                          ('fix.md', {'BATCH': 'GC'}), ('finalize.md', {})):
             out = p.render(name, **kw)
             self.assertNotIn('{{', out, name)
+
+
+    def _ws_after_inventory(self, name):
+        ws = os.path.join(self.tmp, name)
+        subprocess.run(RK + ['init', ws, '--code', self.code, '--no-intake'], capture_output=True, text=True, check=True)
+        subprocess.run(RK + ['run', ws, '--until', 'inventory'], capture_output=True, text=True, check=True)
+        return ws
+
+    def test_neutrality_scan(self):
+        from rekit import neutrality
+        ws = self._ws_after_inventory('work6')
+        kit = os.path.join(ws, 'kit')
+        for d in ('05_behavior', '03_interfaces', 'legacy_ref/modules'):
+            os.makedirs(os.path.join(kit, d), exist_ok=True)
+        open(os.path.join(kit, '05_behavior', 'CAP-SPACE.md'), 'w').write(
+            '### BR-SPACE-001 x\n`gc_run` picks the victim (src: src/ftl.c:3-6), see ftl.c and LoadJob.\n')
+        open(os.path.join(kit, 'legacy_ref', 'modules', 'GC.md'), 'w').write('gc_run (src: src/ftl.c:3-6)')
+        r = neutrality.scan(ws)
+        f = r['files']['05_behavior/CAP-SPACE.md']
+        self.assertEqual(f['symbols'], {'gc_run': 1, 'LoadJob': 1})   # 'victim' is a plain word: not code-like
+        self.assertEqual(f['file_names'], {'ftl.c': 1})
+        self.assertEqual(f['src_refs'], 1)
+        self.assertNotIn('legacy_ref/modules/GC.md', r['files'])        # legacy_ref may name everything
+        open(os.path.join(kit, '03_interfaces', 'IF-API-001.md'), 'w').write('int gc_run(void);')
+        r = neutrality.scan(ws)                                          # contract identifiers are allowed
+        self.assertNotIn('gc_run', r['files']['05_behavior/CAP-SPACE.md']['symbols'])
+
+    def test_specify_and_clean_room_design(self):
+        from rekit import pipeline as pl
+        ws = self._ws_after_inventory('work7')
+        kit, rk = os.path.join(ws, 'kit'), os.path.join(ws, '.rekit')
+        json.dump({'units': [{'id': 'GC', 'files': ['code:src/ftl.c'], 'capabilities': ['CAP-SPACE']}],
+                   'capabilities': [{'id': 'CAP-SPACE', 'area': 'SPACE', 'title': 'space', 'units': ['GC']},
+                                    {'id': 'CAP-HEALTH', 'area': 'HEALTH', 'title': 'health', 'units': []}]},
+                  open(os.path.join(rk, 'units.json'), 'w'))
+        os.makedirs(os.path.join(rk, 'notes', 'GC'))
+        open(os.path.join(rk, 'notes', 'GC', 'behavior.md'), 'w').write('## CAP-SPACE\n### BR-GC-001\n## CAP-OLDH\n')
+        json.dump({'LR-GC-001': {'src': ['code:src/ftl.c:2'], 'confidence': 'x'}, 'BR-GC-001': {'src': []}},
+                  open(os.path.join(rk, 'notes', 'GC', 'trace.json'), 'w'))
+        json.dump({'CAP-OLDH': 'CAP-HEALTH'}, open(os.path.join(rk, 'capability_map.json'), 'w'))
+        os.makedirs(os.path.join(kit, 'legacy_ref'), exist_ok=True)
+        open(os.path.join(kit, 'legacy_ref', 'structure_issues.md'), 'w').write('### LP-001 global state')
+        open(os.path.join(kit, '00_overview.md'), 'w').write('overview')
+        calls = []
+
+        def fake(prompt, cwd, log_path, **k):
+            calls.append({'prompt': prompt, 'cwd': cwd, **k})
+            if 'Phase: SPECIFY' in prompt:
+                cap = re.search(r'capability (CAP-\w+)', prompt).group(1)
+                os.makedirs(os.path.join(cwd, 'kit', '05_behavior'), exist_ok=True)
+                open(os.path.join(cwd, 'kit', '05_behavior', cap + '.md'), 'w').write('spec')
+                os.makedirs(os.path.join(cwd, '.rekit', 'notes', 'spec'), exist_ok=True)
+                json.dump({f'BR-{cap[4:]}-001': {'file': 'kit/05_behavior/' + cap + '.md', 'src': ['code:src/ftl.c:3']}},
+                          open(os.path.join(cwd, '.rekit', 'notes', 'spec', cap + '.trace.json'), 'w'))
+            if 'TARGET DESIGN' in prompt:
+                os.makedirs(os.path.join(cwd, 'design'))
+                open(os.path.join(cwd, 'design', 'architecture.md'), 'w').write(
+                    'saw legacy_ref: %s, issues: %s' % (os.path.exists(os.path.join(cwd, 'legacy_ref')),
+                                                        open(os.path.join(cwd, 'inputs', 'structure_issues.md')).read()))
+            return {'result': 'ok', 'structured': None, 'cost_usd': 0.01, 'wall_s': 0.1, 'num_turns': 1,
+                    'session_id': 'x', 'is_error': False, 'timed_out': False}
+        orig = pl.run_claude
+        pl.run_claude = fake
+        try:
+            p = Pipeline(ws, log=lambda *a: None)
+            p.p_specify()
+            p.p_design()
+        finally:
+            pl.run_claude = orig
+        health = next(c for c in calls if 'capability CAP-HEALTH' in c['prompt'])
+        self.assertIn('.rekit/notes/GC/behavior.md', health['prompt'])      # found through the alias heading
+        self.assertIn('`## CAP-OLDH`', health['prompt'])
+        trace = json.load(open(os.path.join(kit, 'trace.json')))
+        self.assertIn('LR-GC-001', trace)
+        self.assertNotIn('BR-GC-001', trace)                                  # unit note ids are not kit ids
+        self.assertEqual(trace['BR-SPACE-001']['src'], ['code:src/ftl.c:3'])
+        d = calls[-1]
+        self.assertEqual(d['add_dirs'], [])                                   # clean room: no legacy code access
+        self.assertNotIn('Bash', d['allowed_tools'])
+        self.assertEqual(open(os.path.join(kit, 'design', 'architecture.md')).read(),
+                         'saw legacy_ref: False, issues: ### LP-001 global state')
+        self.assertFalse(os.path.exists(os.path.join(rk, 'design_box')))
 
 
 if __name__ == '__main__':

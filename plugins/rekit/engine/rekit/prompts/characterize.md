@@ -1,7 +1,7 @@
 # Phase: CHARACTERIZATION — capture real (golden) behavior of the legacy system
 
 Read `.rekit/prompts/kitspec.md`, `kit/README.md` (if present), `kit/00_overview.md`, `kit/03_interfaces/`,
-`kit/07_tests/`, `.rekit/units.json` ("runnable"), `.rekit/intake.md`.
+`kit/04_data/`, `kit/05_behavior/`, `kit/07_tests/`, `.rekit/units.json` ("runnable"), `.rekit/intake.md`.
 Legacy code roots (read-only, NEVER modify): {{CODE_ROOTS}}. Work only in a copy: `.rekit/sandbox/`.
 
 Goal: executable characterization tests that let an implementer verify a NEW implementation against the ACTUAL legacy
@@ -14,8 +14,11 @@ behavior, through external contracts only.
    Store under `kit/07_tests/golden/<scenario>/` (inputs + expected outputs, exact bytes; note what must be ignored,
    e.g. timestamps). Write `kit/07_tests/README.md` explaining how to run the scenarios against a NEW implementation
    (runner scripts parameterized by the implementation location; contract-level only) and the comparison rules.
+   Scenario names and runner scripts use domain terms (capabilities/contracts), not legacy module names; the runners
+   must work for ANY implementation that honors the contracts (no dependency on legacy internals).
 3. Wherever actual legacy behavior contradicts the kit, FIX the kit (running legacy is the truth for current behavior)
-   and tag verified items `[실행확인]`.
+   and tag verified items `[실행확인]`. Spec fixes follow the neutrality rule of kitspec.md (observable terms, no
+   legacy internal names or source paths in the spec; those go to `kit/legacy_ref/` or `kit/trace.json`).
 4. If not feasible: write in `kit/07_tests/README.md` why and what would be needed (hardware, DB, sample data,
    credentials) and add a `material_request` question to `.rekit/questions/characterize.json` (JSON array).
 Reply with a 5-line summary (feasible?, #scenarios, #kit fixes).
