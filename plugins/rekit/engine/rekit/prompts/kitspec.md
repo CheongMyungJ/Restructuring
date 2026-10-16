@@ -77,6 +77,9 @@ outputs, timing, counters), in domain terms.
   not `gc_select_victim()`; "the load step", not `TlogRecordReader`).
 - Contract identifiers ARE allowed verbatim (they are part of 03_interfaces/04_data): API functions/structs of a
   contract header, file/column/table names, property/env names, command opcodes, on-media field names.
+  Files that the outside world includes, invokes or edits (a public header such as the host API header, a run script,
+  a configuration file the operators maintain) are contracts too: name them, with their path, in the IF that defines
+  them — then they are allowed everywhere.
 - Rules are `condition → observable outcome` (with precedence, boundaries `<`/`<=`, rounding, overflow, empty/null,
   duplicates, retries, idempotency/re-run, error paths), never "function f does …".
 - **Algorithms** belong in the spec only when the exact procedure determines an observable result (bit-exact output,
