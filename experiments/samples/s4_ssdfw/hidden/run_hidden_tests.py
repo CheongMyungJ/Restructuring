@@ -295,7 +295,8 @@ def compare(cmp, arg, exp, act):
 
 def evaluate(res, exp, build_err):
     viol = [k for k in res if k.startswith('viol_')]
-    res['__viol_sum__'] = str(sum(int(res[k]) for k in viol if res[k].isdigit())) if viol else None
+    if viol:                                    # no violation lines at all -> key missing -> those checks fail
+        res['__viol_sum__'] = str(sum(int(res[k]) for k in viol if res[k].isdigit()))
     exp = dict(exp)
     exp['__viol_sum__'] = '0'
     out = [{'category': 'build', 'name': 'library_and_tests_build', 'pass': build_err is None,

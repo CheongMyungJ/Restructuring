@@ -20,8 +20,9 @@ Write (create directory `design/`):
      error-handling and configuration strategy (production values as defaults), persistence/recovery strategy that
      satisfies the data contracts, testability (how the TV and golden tests run against components);
    - proposed source layout of the new system (directories/modules with one-line purposes).
-   Keep contract-fixed elements exactly as the contracts require (e.g. a host API header or run script interface) and
-   design everything behind them freely.
+   Keep contract-fixed elements exactly as the contracts require (verbatim contract files are in
+   `03_interfaces/files/`: use them unchanged, e.g. a host API header, HAL headers, a run script) and design everything
+   behind them freely.
 2. `design/decisions.md`: `### ADR-NNN <title>` — context, alternatives, decision, consequences. Include one ADR per
    relevant LP-* stating how the new design avoids that problem, and ADRs for key choices (state ownership, layering,
    concurrency, configuration, persistence).

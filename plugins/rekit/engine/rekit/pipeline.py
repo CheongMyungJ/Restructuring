@@ -1,6 +1,6 @@
 """rekit pipeline: inventory → survey → unit analysis (parallel) → synthesis → per-capability specification (parallel)
-→ question gate → characterization → sufficiency review/fix → question gate → neutrality check → clean-room target
-design → finalize.  Resumable; every AI step is a fresh headless Claude Code session.
+→ question gate → characterization → sufficiency review/fix → contract boundary check → question gate → neutrality
+check → clean-room target design → finalize.  Resumable; every AI step is a fresh headless Claude Code session.
 
 Kit layers (see prompts/kitspec.md): legacy-neutral spec (what) / design (target, made without seeing legacy code) /
 legacy_ref (how the legacy does it; reference only)."""
@@ -12,8 +12,8 @@ from .questions import QuestionStore
 from .util import read_json, write_json, read_text, write_text
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PHASES = ['inventory', 'survey', 'units', 'synthesize', 'specify', 'gate1', 'characterize', 'review', 'gate2',
-          'neutralize', 'design', 'finalize']
+PHASES = ['inventory', 'survey', 'units', 'synthesize', 'specify', 'gate1', 'characterize', 'review', 'contracts',
+          'gate2', 'neutralize', 'design', 'finalize']
 NEEDS_HUMAN = 10
 
 DEFAULT_CONFIG = {
@@ -22,7 +22,8 @@ DEFAULT_CONFIG = {
     'materials': [],       # [{"label": "materials", "path": "/abs/path"}]
     'language': 'Korean',
     'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'specify': 'opus',
-               'characterize': 'opus', 'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'neutralize': 'opus',
+               'characterize': 'opus', 'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'contracts': 'opus',
+               'neutralize': 'opus',
                'design': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
     'parallel': 4,
     'unit_tokens': 20000,             # small focused units → more precise specs (S2: 95% vs 91% with one big unit)
@@ -37,8 +38,8 @@ DEFAULT_CONFIG = {
     'max_cost_usd': None,     # stop the run (resumable) when the accumulated cost exceeds this
 }
 
-ALL_STEPS = ('survey', 'unit', 'synthesize', 'specify', 'characterize', 'integrate', 'review', 'fix', 'neutralize',
-             'design', 'finalize')
+ALL_STEPS = ('survey', 'unit', 'synthesize', 'specify', 'characterize', 'integrate', 'review', 'fix', 'contracts',
+             'neutralize', 'design', 'finalize')
 PRESETS = {
     # measured on S2 (real SSD firmware, 70-question exam): see experiments/REPORT.md
     'max': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 10000,
@@ -343,7 +344,7 @@ class Pipeline:
     def p_gate(self, name):
         """Ask humans (or oracle) the open questions of gate priorities; integrate answers into the kit."""
         store = QuestionStore(self.ws)
-        for extra in ('characterize.json', 'followup.json') + tuple(
+        for extra in ('characterize.json', 'contracts.json', 'followup.json') + tuple(
                 os.path.basename(p) for p in glob.glob(os.path.join(self.rk, 'questions', 'review_*.json'))):
             p = os.path.join(self.rk, 'questions', extra)
             if os.path.exists(p):
@@ -509,6 +510,10 @@ class Pipeline:
             self.claude(f'fix:{key}', self.render('fix.md', BATCH=key))
         shutil.rmtree(box, ignore_errors=True)
 
+    def p_contracts(self):
+        """Boundaries another party depends on keep their exact code-level form (verbatim contract files)."""
+        self.claude('contracts', self.render('contracts.md'))
+
     def p_neutralize(self):
         """Deterministic leak scan of the spec layer; an AI pass rewrites leaks in observable terms, then re-scan."""
         before = neutrality.scan(self.ws)
@@ -579,7 +584,8 @@ class Pipeline:
         steps = {'inventory': self.p_inventory, 'survey': self.p_survey, 'units': self.p_units,
                  'synthesize': self.p_synthesize, 'specify': self.p_specify, 'gate1': lambda: self.p_gate('gate1'),
                  'characterize': self.p_characterize, 'review': self.p_review,
-                 'gate2': lambda: self.p_gate('gate2'), 'neutralize': self.p_neutralize, 'design': self.p_design,
+                 'contracts': self.p_contracts, 'gate2': lambda: self.p_gate('gate2'),
+                 'neutralize': self.p_neutralize, 'design': self.p_design,
                  'finalize': self.p_finalize}
         last = PHASES.index(until) if until in PHASES else len(PHASES) - 1
         for name in PHASES[:last + 1]:

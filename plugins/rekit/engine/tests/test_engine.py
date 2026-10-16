@@ -163,7 +163,7 @@ class EngineTests(unittest.TestCase):
         p = Pipeline(ws)
         for name, kw in (('survey.md', {'UNIT_TOKENS': 1}), ('unit_v2.md', {'UNIT_ID': 'GC', 'UNIT_TITLE': 't', 'FILES': '-', 'FOCUS': '', 'CHECKLIST': 'x', 'CAPS': 'CAP-SPACE'}),
                          ('specify.md', {'CAP_ID': 'CAP-SPACE', 'CAP_TITLE': 't', 'AREA': 'SPACE', 'CAP_DESC': 'd', 'NOTES': 'n', 'ALIASES': ''}),
-                         ('neutralize.md', {}), ('design.md', {}),
+                         ('neutralize.md', {}), ('design.md', {}), ('contracts.md', {}),
                          ('synthesize_v2.md', {'SOURCES': 's'}), ('synthesize_group.md', {'GROUP_ID': 'G', 'GROUP_TITLE': 't', 'UNITS': 'GC'}),
                          ('characterize.md', {}), ('integrate.md', {}), ('review_v2.md', {'AREA': 'GC', 'AREA_ID': 'GC', 'FILES': 'f'}),
                          ('fix.md', {'BATCH': 'GC'}), ('finalize.md', {})):

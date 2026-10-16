@@ -29,6 +29,7 @@ kit/
                             # threading/ISR constraints of the platform), production configuration values, build/variant
                             # facts that change behavior (production values!), compatibility requirements
   03_interfaces/IF-*.md     # one file per EXTERNAL contract, field/byte exact
+  03_interfaces/files/      # verbatim copies of contract source files (public/HAL headers, DDL, run script, ...)
   04_data/DM-*.md           # persisted / shared data contracts (on-media formats, files, tables) + invariants
   05_behavior/CAP-*.md      # one file per CAPABILITY (not per legacy module): rules, invariants, observable states,
                             # errors, outcome-determining algorithms
@@ -77,6 +78,10 @@ outputs, timing, counters), in domain terms.
   not `gc_select_victim()`; "the load step", not `TlogRecordReader`).
 - Contract identifiers ARE allowed verbatim (they are part of 03_interfaces/04_data): API functions/structs of a
   contract header, file/column/table names, property/env names, command opcodes, on-media field names.
+  A boundary that another party implements, calls, includes, parses or stores (host API, HAL/driver/platform
+  interface implemented by platform code or test harnesses, plugin/callback interfaces, scripts, schemas, formats) is
+  a CONTRACT, not legacy structure: keep its exact code-level form (prototypes with types, constants, struct layouts)
+  unless a human decision (DEC) allows changing it; never declare such a boundary "free to change" on your own.
   Files that the outside world includes, invokes or edits (a public header such as the host API header, a run script,
   a configuration file the operators maintain) are contracts too: name them, with their path, in the IF that defines
   them — then they are allowed everywhere.

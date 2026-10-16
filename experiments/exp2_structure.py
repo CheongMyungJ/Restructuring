@@ -24,7 +24,7 @@ OUT = os.path.join(HERE, 'results')
 LEGACY = {'s3': os.path.join(SP, 'samples', 's3_tlog', 'legacy'), 's4': os.path.join(SP, 'samples', 's4_ssdfw', 'legacy')}
 # contract files: the redevelopment prompt requires them unchanged, so keeping them is not structural dependence
 CONTRACTS = {'s3': [], 's4': ['fw_api.h', 'hal/*.h', 'hal_nand.h', 'hal_timer.h', 'hal_temp.h']}
-KIT_LABEL = {'rekit_v2': 'F2 현행', 'rekit_v3': 'F3 신규'}
+KIT_LABEL = {'rekit_v2': 'F2 현행', 'rekit_v3': 'F3.0 신규(1차)', 'rekit_v3c': 'F3.1 신규(계약 경계 점검 추가)'}
 KIT_LABEL.update({k + '@': v for k, v in KIT_LABEL.items()})
 
 
@@ -41,7 +41,7 @@ def redev_rows():
         if d['sample'] not in LEGACY:
             continue
         kit = kit_of(run)
-        if kit not in ('-', 'rekit_v2', 'rekit_v3'):
+        if kit not in ('-', 'rekit_v2', 'rekit_v3', 'rekit_v3c'):
             continue
         sc = reports.load(os.path.join(run, 'score.json'))
         if sc.get('error'):
@@ -95,7 +95,8 @@ def main():
     json.dump({'kits': k, 'redevelopment': r}, open(os.path.join(OUT, 'exp2_raw.json'), 'w'), ensure_ascii=False, indent=1)
     L = ['# Experiment 2 raw results — structure independence', '',
          'F2 = kit format of the previous engine (module-organized spec, faithful pseudo-code, src refs inline);',
-         'F3 = new format (legacy-neutral spec by capability + clean-room design + legacy_ref). Workspace names: rekit_v2 / rekit_v3.',
+         'F3 = new format (legacy-neutral spec by capability + clean-room design + legacy_ref); F3.1 adds the contract boundary',
+         'check (verbatim contract files). Workspace names: rekit_v2 / rekit_v3 / rekit_v3c.',
          '', '## Kits (generation cost, legacy-structure leaks in spec/design)', '',
          '| sample | kit | done | cost $ | wall min | sessions | kit KB | spec KB | internal-name hits | file-name hits | src refs | leaks/10KB |',
          '|---|---|---|---|---|---|---|---|---|---|---|---|']
