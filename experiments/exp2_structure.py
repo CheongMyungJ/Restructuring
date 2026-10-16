@@ -24,6 +24,9 @@ OUT = os.path.join(HERE, 'results')
 LEGACY = {'s3': os.path.join(SP, 'samples', 's3_tlog', 'legacy'), 's4': os.path.join(SP, 'samples', 's4_ssdfw', 'legacy')}
 # contract files: the redevelopment prompt requires them unchanged, so keeping them is not structural dependence
 CONTRACTS = {'s3': [], 's4': ['fw_api.h', 'hal/*.h', 'hal_nand.h', 'hal_timer.h', 'hal_temp.h']}
+# firmware core only: the hidden harness links the firmware library; simulator/CLI tools and the ASIC BSP are not part
+# of it (their interfaces are dev-tool contracts the golden tests drive), so S4 also gets an LSS without them
+CORE_EXTRA = {'s3': [], 's4': ['platform/*', 'sim/*', 'tools/*', 'sim_*.c', 'sim.h', 'ssdcli.c', 'imgdump.c']}
 KIT_LABEL = {'rekit_v2': 'F2 현행', 'rekit_v3': 'F3.0 신규(1차)', 'rekit_v3c': 'F3.1 신규(계약 경계 점검 추가)'}
 KIT_LABEL.update({k + '@': v for k, v in KIT_LABEL.items()})
 
@@ -50,11 +53,15 @@ def redev_rows():
         new = os.path.join(run, 'ws', 'new')
         if os.path.isdir(new):
             sim = similarity.compare(LEGACY[d['sample']], new, CONTRACTS[d['sample']], detail=True)
+            if CORE_EXTRA[d['sample']]:
+                core = similarity.compare(LEGACY[d['sample']], new, CONTRACTS[d['sample']] + CORE_EXTRA[d['sample']])
+                sim['core'] = {k: core[k] for k in ('LSS', 'M1_file_mirror', 'M2_name_reuse', 'M3_clone_ratio',
+                                                    'M4_function_mirror', 'verbatim_ratio')}
             json.dump(sim, open(sp, 'w'), ensure_ascii=False, indent=1)
         sim = json.load(open(sp)) if os.path.exists(sp) else {}
         rows.append({'sample': d['sample'], 'variant': d['variant'], 'kit': kit, 'rep': d['rep'],
                      'score': sc.get('score'), 'passed': sc.get('passed'), 'total': sc.get('total'),
-                     'LSS': sim.get('LSS'), 'M1': sim.get('M1_file_mirror'), 'M2': sim.get('M2_name_reuse'),
+                     'LSS': sim.get('LSS'), 'LSS_core': (sim.get('core') or {}).get('LSS', sim.get('LSS')), 'M1': sim.get('M1_file_mirror'), 'M2': sim.get('M2_name_reuse'),
                      'M3': sim.get('M3_clone_ratio'), 'M4': sim.get('M4_function_mirror'),
                      'verbatim': sim.get('verbatim_ratio'), 'new_files': (sim.get('new') or {}).get('files'),
                      'new_loc': (sim.get('new') or {}).get('loc'),
@@ -105,23 +112,23 @@ def main():
                  f"{x['sessions']} | {x['kit_kb']} | {round(x['leak_spec_bytes'] / 1024)} | {x['leak_symbols']} | "
                  f"{x['leak_file_names']} | {x['leak_src_refs']} | {x['leak_leaks_per_10kb']} |")
     L += ['', '## Redevelopment runs', '',
-          '| sample | variant | kit | rep | hidden tests | LSS | M1 file | M2 names | M3 clone | M4 func | verbatim | new files/LOC | cost $ | min | audit |',
-          '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|']
+          '| sample | variant | kit | rep | hidden tests | LSS | LSS core | M1 file | M2 names | M3 clone | M4 func | verbatim | new files/LOC | cost $ | min | audit |',
+          '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|']
     for x in r:
         L.append(f"| {x['sample']} | {x['variant']} | {KIT_LABEL.get(x['kit'], x['kit'])} | {x['rep']} | {x['passed']}/{x['total']} | "
-                 f"{fmt(x['LSS'])} | {fmt(x['M1'], 1)} | {fmt(x['M2'], 1)} | {fmt(x['M3'], 1)} | {fmt(x['M4'], 1)} | "
+                 f"{fmt(x['LSS'])} | {fmt(x['LSS_core'])} | {fmt(x['M1'], 1)} | {fmt(x['M2'], 1)} | {fmt(x['M3'], 1)} | {fmt(x['M4'], 1)} | "
                  f"{fmt(x['verbatim'], 1)} | {x['new_files']}/{x['new_loc']} | {x['cost_usd']} | {x['wall_min']} | {x['audit']} |")
     agg = {}
     for x in r:
         if x['LSS'] is not None:
             agg.setdefault((x['sample'], x['variant'], x['kit']), []).append(x)
     L += ['', '## Mean by sample / variant / kit', '',
-          '| sample | variant | kit | n | hidden tests (each) | mean LSS | M1 | M2 | M3 | M4 | mean cost $ | mean min |',
-          '|---|---|---|---|---|---|---|---|---|---|---|---|']
+          '| sample | variant | kit | n | hidden tests (each) | mean LSS | LSS core | M1 | M2 | M3 | M4 | mean cost $ | mean min |',
+          '|---|---|---|---|---|---|---|---|---|---|---|---|---|']
     m = lambda xs, key: st.mean(x[key] for x in xs if x[key] is not None)
     for (s, v, kk), xs in sorted(agg.items()):
         L.append(f"| {s} | {v} | {KIT_LABEL.get(kk, kk)} | {len(xs)} | {', '.join(f'{x['passed']}/{x['total']}' for x in xs)} | "
-                 f"{m(xs, 'LSS'):.1f} | {m(xs, 'M1'):.0%} | {m(xs, 'M2'):.0%} | {m(xs, 'M3'):.0%} | {m(xs, 'M4'):.0%} | "
+                 f"{m(xs, 'LSS'):.1f} | {m(xs, 'LSS_core'):.1f} | {m(xs, 'M1'):.0%} | {m(xs, 'M2'):.0%} | {m(xs, 'M3'):.0%} | {m(xs, 'M4'):.0%} | "
                  f"{m(xs, 'cost_usd'):.2f} | {m(xs, 'wall_min'):.1f} |")
     open(os.path.join(OUT, 'exp2_raw.md'), 'w').write('\n'.join(L) + '\n')
     print('\n'.join(L))
