@@ -1,8 +1,8 @@
 """Deterministic scan for legacy-structure leaks in the legacy-neutral layers of a kit (spec + design).
 
 A leak is a legacy INTERNAL name (function/type/class/macro/variable symbol of the inventory), a legacy source file
-name, or an inline source reference, written into a file the implementer reads as requirements. Names that appear in
-the contract files (03_interfaces, 04_data) are contract identifiers and are allowed.
+name, or an inline source reference, written into a file the implementer reads as requirements. Names (and file names) that
+appear in the contract files (03_interfaces, 04_data) are contract identifiers and are allowed.
 """
 import glob, os, re
 
@@ -49,7 +49,8 @@ def scan(ws):
     internal = syms - contract_ids
     sym_re = re.compile(r'(?<![A-Za-z0-9_])(' + '|'.join(sorted(map(re.escape, internal), key=len, reverse=True)) +
                         r')(?![A-Za-z0-9_])') if internal else None
-    fn_re = re.compile(r'(?<![\w./-])(' + '|'.join(sorted(map(re.escape, fnames - contract_ids), key=len, reverse=True)) +
+    fnames = {f for f in fnames if f not in contract_text}     # e.g. a run script named by the ops contract
+    fn_re = re.compile(r'(?<![\w./-])(' + '|'.join(sorted(map(re.escape, fnames), key=len, reverse=True)) +
                        r')(?![\w])') if fnames else None
     report = {'files': {}, 'totals': {'symbols': 0, 'file_names': 0, 'src_refs': 0, 'spec_files': 0,
                                       'spec_bytes': 0},
