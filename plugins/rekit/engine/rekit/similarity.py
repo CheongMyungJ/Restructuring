@@ -336,3 +336,28 @@ def format_report(r):
     if r['legacy']['contract_files']:
         lines.append(f"  계약 파일(제외): {', '.join(r['legacy']['contract_files'])}")
     return '\n'.join(lines)
+
+
+def main(argv=None):
+    """Standalone use (the kit ships this file as tools/structure_check.py):
+    python3 structure_check.py <legacy_code_dir> <new_code_dir> [--contract GLOB ...] [--json] [--detail]"""
+    import argparse, json
+    ap = argparse.ArgumentParser(description='Legacy Structure Similarity (LSS): 0 = independent, 100 = copy of legacy')
+    ap.add_argument('legacy'); ap.add_argument('new')
+    ap.add_argument('--contract', action='append', default=[], help='contract file glob kept unchanged on purpose')
+    ap.add_argument('--json', action='store_true'); ap.add_argument('--detail', action='store_true')
+    a = ap.parse_args(argv)
+    r = compare(a.legacy, a.new, a.contract, detail=a.detail)
+    if a.detail:
+        mirrored = r['detail']['mirrored_functions']
+        print(format_report(r))
+        print('\n레거시와 대응하는 함수 (레거시 파일:함수 -> 신규 파일:함수, 유사도):')
+        for lf, ln, nf, nn, j in sorted(mirrored):
+            print(f'  {lf}:{ln} -> {nf}:{nn}  {j}')
+    else:
+        print(json.dumps(r, ensure_ascii=False, indent=1) if a.json else format_report(r))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

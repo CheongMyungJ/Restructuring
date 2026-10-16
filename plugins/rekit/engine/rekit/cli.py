@@ -307,9 +307,8 @@ def cmd_coverage(a):
 
 def cmd_similarity(a):
     from . import similarity
-    r = similarity.compare(a.legacy, a.new, a.contract or (), detail=a.detail)
-    print(json.dumps(r, ensure_ascii=False, indent=1) if a.json or a.detail else similarity.format_report(r))
-    return 0
+    args = [a.legacy, a.new] + [x for c in (a.contract or []) for x in ('--contract', c)]
+    return similarity.main(args + (['--json'] if a.json else []) + (['--detail'] if a.detail else []))
 
 
 def main(argv=None):

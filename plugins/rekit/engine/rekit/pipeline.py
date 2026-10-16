@@ -552,6 +552,8 @@ class Pipeline:
         write_json(os.path.join(self.rk, 'neutrality.json'),
                    {**(read_json(os.path.join(self.rk, 'neutrality.json'), {}) or {}),
                     'pre_finalize': neutrality.scan(self.ws)['totals']})
+        os.makedirs(os.path.join(self.kit, 'tools'), exist_ok=True)      # implementer's structure self-check
+        shutil.copy2(os.path.join(HERE, 'similarity.py'), os.path.join(self.kit, 'tools', 'structure_check.py'))
         self.claude('finalize', self.render('finalize.md'))
         QuestionStore(self.ws).save()   # re-render 09_open_questions.md
         self.coverage()
