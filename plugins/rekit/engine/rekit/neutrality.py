@@ -11,6 +11,10 @@ from .util import read_json
 SPEC_GLOBS = ['*.md', '05_behavior/**/*.md', '07_tests/README.md', '07_tests/vectors/**/*.md', 'design/**/*.md']
 CONTRACT_GLOBS = ['03_interfaces/**/*', '04_data/**/*']
 NOT_SCANNED = {'09_open_questions.md'}        # generated from questions (their context cites code on purpose)
+# names every codebase of the language/build tool has: not legacy-specific structure
+GENERIC = {'toString', 'hashCode', 'equals', 'main', 'README.md', 'pom.xml', 'build.gradle', 'settings.gradle',
+           'Makefile', 'CMakeLists.txt', 'logback.xml', 'log4j2.xml', 'application.yml', 'application.properties',
+           'package.json', 'build.sh', '.gitignore'}
 SRC_RE = re.compile(r'\(src:[^)]*\)|\bsrc:\s*\S+:\d+')
 
 
@@ -46,10 +50,10 @@ def scan(ws):
         base = os.path.basename(f['path'])
         if '.' in base and len(base) >= 5:
             fnames.add(base)
-    internal = syms - contract_ids
+    internal = syms - contract_ids - GENERIC
     sym_re = re.compile(r'(?<![A-Za-z0-9_])(' + '|'.join(sorted(map(re.escape, internal), key=len, reverse=True)) +
                         r')(?![A-Za-z0-9_])') if internal else None
-    fnames = {f for f in fnames if f not in contract_text}     # e.g. a run script named by the ops contract
+    fnames = {f for f in fnames if f not in contract_text and f not in GENERIC}     # e.g. a run script named by the ops contract
     fn_re = re.compile(r'(?<![\w./-])(' + '|'.join(sorted(map(re.escape, fnames), key=len, reverse=True)) +
                        r')(?![\w])') if fnames else None
     report = {'files': {}, 'totals': {'symbols': 0, 'file_names': 0, 'src_refs': 0, 'spec_files': 0,
