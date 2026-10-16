@@ -338,24 +338,59 @@ def format_report(r):
     return '\n'.join(lines)
 
 
+TARGET_LSS, TARGET_M4 = 20.0, 0.10
+
+
+def kit_contract_globs(script_path):
+    """When shipped as kit/tools/structure_check.py, the contract files are the kit's verbatim copies in
+    kit/03_interfaces/files/ — fixed by the kit, not chosen by the implementer."""
+    files = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(script_path))), '03_interfaces', 'files')
+    out = []
+    for dp, _, fs in os.walk(files):
+        for f in fs:
+            out.append(os.path.relpath(os.path.join(dp, f), files).replace(os.sep, '/'))
+    return sorted(out)
+
+
+def verdict(r):
+    ok = r['LSS'] < TARGET_LSS and r['M4_function_mirror'] < TARGET_M4
+    return (f"판정: {'통과' if ok else '미달'} (목표 LSS < {TARGET_LSS:.0f} 그리고 함수 대응률 M4 < {TARGET_M4:.0%}; "
+            f"이름만 바꾸는 것으로는 M3·M4가 줄지 않는다 — 대응 함수는 design/ 에 따라 다시 작성)")
+
+
 def main(argv=None):
     """Standalone use (the kit ships this file as tools/structure_check.py):
-    python3 structure_check.py <legacy_code_dir> <new_code_dir> [--contract GLOB ...] [--json] [--detail]"""
+    python3 structure_check.py <legacy_code_dir> <new_code_dir> [--contract GLOB ...] [--json] [--detail]
+    Inside a kit, the official result always uses the kit's contract files (03_interfaces/files/); extra --contract
+    globs only produce an additional, clearly labelled reference figure."""
     import argparse, json
     ap = argparse.ArgumentParser(description='Legacy Structure Similarity (LSS): 0 = independent, 100 = copy of legacy')
     ap.add_argument('legacy'); ap.add_argument('new')
     ap.add_argument('--contract', action='append', default=[], help='contract file glob kept unchanged on purpose')
     ap.add_argument('--json', action='store_true'); ap.add_argument('--detail', action='store_true')
     a = ap.parse_args(argv)
-    r = compare(a.legacy, a.new, a.contract, detail=a.detail)
+    kit = kit_contract_globs(__file__) if os.path.basename(os.path.dirname(os.path.abspath(__file__))) == 'tools' else []
+    official = kit or a.contract
+    r = compare(a.legacy, a.new, official, detail=a.detail)
+    extra = [c for c in a.contract if c not in official]
+    if a.json:
+        if extra:
+            r['reference_with_extra_contracts'] = {k: v for k, v in compare(a.legacy, a.new, official + extra).items()
+                                                   if k != 'detail'}
+        print(json.dumps(r, ensure_ascii=False, indent=1))
+        return 0
+    if kit:
+        print(f"계약 파일(키트 03_interfaces/files 기준, 고정): {len(kit)}개")
+    print(format_report(r))
+    print(verdict(r))
+    if extra:
+        x = compare(a.legacy, a.new, official + extra)
+        print(f"\n[참고용, 판정에 쓰지 않음] 추가 제외 {extra} 적용 시 LSS {x['LSS']} — 키트가 계약으로 정하지 않은 "
+              f"파일을 제외하면 구조 유사도가 가려진다")
     if a.detail:
-        mirrored = r['detail']['mirrored_functions']
-        print(format_report(r))
         print('\n레거시와 대응하는 함수 (레거시 파일:함수 -> 신규 파일:함수, 유사도):')
-        for lf, ln, nf, nn, j in sorted(mirrored):
+        for lf, ln, nf, nn, j in sorted(r['detail']['mirrored_functions']):
             print(f'  {lf}:{ln} -> {nf}:{nn}  {j}')
-    else:
-        print(json.dumps(r, ensure_ascii=False, indent=1) if a.json else format_report(r))
     return 0
 
 

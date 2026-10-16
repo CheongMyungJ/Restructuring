@@ -24,10 +24,10 @@ Neutrality report: `.rekit/neutrality.json`. Legacy code roots (read-only): {{CO
          module layout; if you deviate from `design/`, record an ADR in `IMPLEMENTATION_NOTES.md`;
      (d) verify through contracts: TV vectors and `07_tests/golden`;
      (e) do not keep the legacy source in the new project's workspace; if it is there anyway (or you consulted it),
-         run `python3 kit/tools/structure_check.py <legacy code dir> <new code dir> --contract <contract file glob>…
-         --detail` before finishing (contract files = `03_interfaces/files/`): the structure similarity LSS should stay
-         low (target < 20) and every function it lists as mirrored must be rewritten following `design/` (a port
-         with renamed identifiers is still a port);
+         run `python3 kit/tools/structure_check.py <legacy code dir> <new code dir> --detail` before finishing. The
+         contract files are fixed by the kit (`03_interfaces/files/`); do not exclude anything else. Targets: LSS < 20
+         and function mirror M4 < 10%; every function it lists as mirrored must be rewritten following `design/` —
+         renaming identifiers or excluding files does not change what was ported. Report the tool's verdict as is;
    - ID and tag conventions, how to use `07_tests` and `10_plan.md`;
    - list of must-preserve contracts; open questions summary with applied assumptions.
 4. Make `kit/trace.json` complete and consistent (every ID heading in the kit has an entry and vice versa; spec IDs
