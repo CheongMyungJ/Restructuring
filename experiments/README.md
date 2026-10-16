@@ -11,6 +11,7 @@
 | `qa_eval.py` | (실행 불가 펌웨어용) 데이터만 보는 답변자 + 별도 채점자로 재구현자 시험 채점 |
 | `kit_coverage.py` | 데이터가 소스 파일·함수를 얼마나 언급하는지 결정적 측정 |
 | `aggregate.py` | 결과 집계(`results/`), S3는 운영지식 의존 체크/코드 도출 가능 체크로 분리 |
+| `exp2_structure.py` | 실험 2(구조 독립성): 재개발 결과마다 숨김 테스트 점수 + 레거시 구조 유사도(LSS, `rekit similarity`), 키트마다 명세 층의 레거시 구조 누출(`rekit.neutrality`) → `results/exp2_raw.{json,md}` |
 | `prompts/` | 비교군 생성 프롬프트(단일 세션 키트 `kitgen_v1`, 서술형 `naivedoc`)와 재개발 과제 프롬프트 |
 | `samples/` | 샘플 준비 스크립트와 숨김 테스트(아래) |
 
@@ -39,5 +40,10 @@ python3 ../plugins/rekit/engine/rekit.py run $SP/exp/gen/s3/rekit_x \
 python3 exp1.py redev s3 V3,V4 --reps 1,2 --kit-method rekit_x
 python3 qa_eval.py <kit_dir> samples/s2_cosmos/hidden/qa.json --out qa.json
 python3 aggregate.py
+# 실험 2: 키트 형식(F2 현행 / F3 세 층)별 재개발의 구조 독립성
+python3 exp1.py redev s4 V0 --reps 1,2
+python3 exp1.py redev s4 V3,V4 --reps 1,2 --kit-method rekit_v2    # F2 키트 (이전 엔진으로 생성)
+python3 exp1.py redev s4 V3,V4 --reps 1,2 --kit-method rekit_v3    # F3 키트 (현재 엔진으로 생성)
+python3 exp2_structure.py
 ```
 변형: V0 코드만, V1 서술형 문서, V2 키트(테스트 제외), V3 키트, V4 키트+코드, V5 코드+키트(동작 상세 제외).

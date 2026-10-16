@@ -1,7 +1,7 @@
 {
   "name": "rekit",
-  "version": "0.1.0",
-  "description": "Legacy code + materials → Redevelopment Kit (precise spec, golden tests, plan) for AI-driven re-implementation, with human Q&A.",
+  "version": "0.2.0",
+  "description": "Legacy code + materials → Redevelopment Kit for AI-driven redesign: legacy-neutral spec, golden tests, clean-room target design, legacy reference, with human Q&A and a structure-similarity check.",
   "author": { "name": "CheongMyungJ" },
   "keywords": ["legacy", "reverse-engineering", "modernization", "redevelopment", "spec", "firmware", "spring-batch"]
 }

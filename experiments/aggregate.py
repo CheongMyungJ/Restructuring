@@ -5,7 +5,9 @@ import glob, json, os, statistics as st, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import reports  # noqa: E402
 
-SP = os.environ.get('SP', '/tmp/claude-0/-home-user-Restructuring/9155ba45-e573-59a1-b70d-b72c0c21626d/scratchpad')
+SP = os.environ.get('SP')
+if not SP:
+    sys.exit('set SP to the experiment work root (export SP=/path/to/work), see experiments/README.md')
 EXP = os.path.join(SP, 'exp')
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
 

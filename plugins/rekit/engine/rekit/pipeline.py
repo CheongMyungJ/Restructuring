@@ -1,23 +1,30 @@
-"""rekit pipeline: inventory → survey → unit analysis (parallel) → synthesis → question gate → characterization →
-sufficiency review/fix → question gate → finalize.  Resumable; every AI step is a fresh headless Claude Code session."""
+"""rekit pipeline: inventory → survey → unit analysis (parallel) → synthesis → per-capability specification (parallel)
+→ question gate → characterization → sufficiency review/fix → contract boundary check → question gate → neutrality
+check → clean-room target design → finalize.  Resumable; every AI step is a fresh headless Claude Code session.
+
+Kit layers (see prompts/kitspec.md): legacy-neutral spec (what) / design (target, made without seeing legacy code) /
+legacy_ref (how the legacy does it; reference only)."""
 import concurrent.futures as cf, copy, glob, json, os, re, shutil, threading, time
 
-from . import inventory, materials
+from . import inventory, materials, neutrality
 from .claude import run_claude
 from .questions import QuestionStore
 from .util import read_json, write_json, read_text, write_text
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PHASES = ['inventory', 'survey', 'units', 'synthesize', 'gate1', 'characterize', 'review', 'gate2', 'finalize']
+PHASES = ['inventory', 'survey', 'units', 'synthesize', 'specify', 'gate1', 'characterize', 'review', 'contracts',
+          'gate2', 'neutralize', 'design', 'finalize']
 NEEDS_HUMAN = 10
+FIX_BATCH_GAPS = 40        # review gaps per fix session (one session per capability batch keeps the context bounded)
 
 DEFAULT_CONFIG = {
     'project': 'legacy-system',
     'code': [],            # [{"label": "code", "path": "/abs/path"}]
     'materials': [],       # [{"label": "materials", "path": "/abs/path"}]
     'language': 'Korean',
-    'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'characterize': 'opus',
-               'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
+    'models': {'default': None, 'survey': 'opus', 'unit': 'opus', 'synthesize': 'opus', 'specify': 'opus',
+               'characterize': 'opus', 'integrate': 'opus', 'review': 'opus', 'fix': 'opus', 'contracts': 'opus',
+               'neutralize': 'opus', 'design': 'opus', 'finalize': 'opus', 'oracle': 'sonnet'},
     'parallel': 4,
     'unit_tokens': 20000,             # small focused units → more precise specs (S2: 95% vs 91% with one big unit)
     'group_synthesis_min_units': 9,   # hierarchical synthesis when there are more units than this
@@ -31,7 +38,8 @@ DEFAULT_CONFIG = {
     'max_cost_usd': None,     # stop the run (resumable) when the accumulated cost exceeds this
 }
 
-ALL_STEPS = ('survey', 'unit', 'synthesize', 'characterize', 'integrate', 'review', 'fix', 'finalize')
+ALL_STEPS = ('survey', 'unit', 'synthesize', 'specify', 'characterize', 'integrate', 'review', 'fix', 'contracts',
+             'neutralize', 'design', 'finalize')
 PRESETS = {
     # measured on S2 (real SSD firmware, 70-question exam): see experiments/REPORT.md
     'max': {'models': {**{k: 'opus' for k in ALL_STEPS}, 'oracle': 'sonnet'}, 'unit_tokens': 10000,
@@ -220,13 +228,15 @@ class Pipeline:
         def work(u):
             files = '\n'.join(f'- {f}' for f in u['files'])
             prompt = self.render('unit_v2.md', UNIT_ID=u['id'], UNIT_TITLE=u.get('title', ''), FILES=files,
-                                 FOCUS=u.get('focus', ''), CHECKLIST=self.checklist())
+                                 FOCUS=u.get('focus', ''), CHECKLIST=self.checklist(),
+                                 CAPS=', '.join(u.get('capabilities') or []) or '(see .rekit/units.json)')
             try:
                 r = self.claude(f"unit:{u['id']}", prompt)
             except SessionFailed:
                 self.update_state(lambda s: s['units'].__setitem__(u['id'], 'failed'))
                 raise
-            ok = os.path.exists(os.path.join(self.kit, '05_behavior', f"{u['id']}.md"))
+            ok = all(os.path.exists(p) for p in (os.path.join(self.kit, 'legacy_ref', 'modules', f"{u['id']}.md"),
+                                                 os.path.join(self.rk, 'notes', u['id'], 'behavior.md')))
             status = 'done' if ok and not r['is_error'] else 'failed'
             self.update_state(lambda s: s['units'].__setitem__(u['id'], status))
             return u['id'], ok
@@ -262,8 +272,8 @@ class Pipeline:
             with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
                 list(ex.map(gsyn, groups.items()))
             sources = ('all `.rekit/groups/*/summary.md`, `.rekit/groups/*/contracts.md`, `.rekit/groups/*/tests.md`, '
-                       '`.rekit/groups/*/questions.json` (subsystem syntheses; open `.rekit/notes/<unit>/*` only when '
-                       'you need detail)')
+                       '`.rekit/groups/*/questions.json`, `.rekit/groups/*/issues.md` (subsystem syntheses; open '
+                       '`.rekit/notes/<unit>/*` only when you need detail)')
         else:
             sources = ('all `.rekit/notes/*/digest.md`, `.rekit/notes/*/contracts.md`, `.rekit/notes/*/tests.md`, '
                        '`.rekit/notes/*/questions.json`')
@@ -272,6 +282,72 @@ class Pipeline:
         store.supersede(os.path.join(self.rk, 'questions', 'merged.json'))
         store.save()
 
+    def capabilities(self):
+        caps = self.load_units().get('capabilities') or []
+        return [c for c in caps if c.get('id', '').startswith('CAP-')]
+
+    def p_specify(self):
+        """One session per capability turns the legacy-neutral unit notes into kit/05_behavior/CAP-*.md + vectors."""
+        caps = self.capabilities()
+        if not caps:
+            raise RuntimeError('no capabilities in .rekit/units.json (survey/synthesis must define them)')
+        aliases = {}
+        for old, new in (read_json(os.path.join(self.rk, 'capability_map.json'), {}) or {}).items():
+            aliases.setdefault(new, []).append(old)
+        notes = sorted(glob.glob(os.path.join(self.rk, 'notes', '*', 'behavior.md')))
+        os.makedirs(os.path.join(self.rk, 'notes', 'spec'), exist_ok=True)
+        self.state.setdefault('caps', {})
+        todo = [c for c in caps if self.state['caps'].get(c['id']) != 'done']
+        known = {c['id'] for c in caps} | {a for olds in aliases.values() for a in olds}
+        orphan = {}
+        for n in notes:
+            for h in re.findall(r'^##\s+(CAP-[\w-]+)', read_text(n, ''), re.M):
+                if h not in known:
+                    orphan.setdefault(h, []).append(os.path.relpath(n, self.ws))
+        if orphan:      # behavior no specify session would receive: synthesis must map it (capability_map/headings)
+            write_json(os.path.join(self.rk, 'unassigned_notes.json'), orphan)
+            raise RuntimeError(f'note sections without a capability: {sorted(orphan)} — map them in '
+                               f'.rekit/capability_map.json or rename the headings, then `rekit run` again '
+                               f'(details: .rekit/unassigned_notes.json)')
+
+        def work(c):
+            heads = [c['id']] + aliases.get(c['id'], [])
+            pat = re.compile(r'^##\s+(' + '|'.join(map(re.escape, heads)) + r')(?![\w-])', re.M)
+            mine = [os.path.relpath(n, self.ws) for n in notes if pat.search(read_text(n, ''))]
+            units = set(c.get('units') or [])
+            mine += [f'.rekit/notes/{u}/behavior.md' for u in sorted(units)
+                     if f'.rekit/notes/{u}/behavior.md' not in mine and os.path.exists(os.path.join(self.rk, 'notes', u, 'behavior.md'))]
+            area = c.get('area') or c['id'][4:]
+            prompt = self.render('specify.md', CAP_ID=c['id'], CAP_TITLE=c.get('title', ''), AREA=area,
+                                 CAP_DESC=c.get('description', ''), NOTES='\n'.join(f'- `{m}`' for m in mine) or '- (none)',
+                                 ALIASES=''.join(f' / `## {a}`' for a in aliases.get(c['id'], [])))
+            self.claude(f"specify:{c['id']}", prompt)
+            ok = os.path.exists(os.path.join(self.kit, '05_behavior', f"{c['id']}.md"))
+            self.update_state(lambda s: s['caps'].__setitem__(c['id'], 'done' if ok else 'failed'))
+            return c['id'], ok
+
+        with cf.ThreadPoolExecutor(max(1, int(self.cfg['parallel']))) as ex:
+            results = list(ex.map(work, todo))
+        failed = [cid for cid, ok in results if not ok]
+        if failed:
+            raise RuntimeError(f'capability specification failed: {failed} (re-run `rekit run` to retry)')
+        self.merge_trace()
+
+    def merge_trace(self):
+        """kit/trace.json = legacy_ref ids from unit traces + synthesis ids + spec ids (finalize completes it)."""
+        trace = read_json(os.path.join(self.kit, 'trace.json'), {}) or {}
+        for tf in sorted(glob.glob(os.path.join(self.rk, 'notes', '*', 'trace.json'))):
+            unit = os.path.basename(os.path.dirname(tf))
+            for k, v in (read_json(tf, {}) or {}).items():
+                if k.startswith('LR-') and isinstance(v, dict):
+                    trace.setdefault(k, {**v, 'file': f'kit/legacy_ref/modules/{unit}.md'})
+        for tf in [os.path.join(self.rk, 'notes', 'synthesis_trace.json')] + \
+                sorted(glob.glob(os.path.join(self.rk, 'notes', 'spec', '*.trace.json'))):
+            for k, v in (read_json(tf, {}) or {}).items():
+                if isinstance(v, dict):
+                    trace[k] = v
+        write_json(os.path.join(self.kit, 'trace.json'), trace)
+
     def write_answered(self):
         store = QuestionStore(self.ws)
         write_json(os.path.join(self.rk, 'questions', 'answered.json'), store.answered_json())
@@ -279,7 +355,7 @@ class Pipeline:
     def p_gate(self, name):
         """Ask humans (or oracle) the open questions of gate priorities; integrate answers into the kit."""
         store = QuestionStore(self.ws)
-        for extra in ('characterize.json', 'followup.json') + tuple(
+        for extra in ('characterize.json', 'contracts.json', 'followup.json') + tuple(
                 os.path.basename(p) for p in glob.glob(os.path.join(self.rk, 'questions', 'review_*.json'))):
             p = os.path.join(self.rk, 'questions', extra)
             if os.path.exists(p):
@@ -397,15 +473,16 @@ class Pipeline:
     def p_review(self):
         if not self.cfg.get('review'):
             return
-        units = self.load_units()['units']
+        caps = self.capabilities()
         rv = os.path.join(self.rk, 'review')
         os.makedirs(rv, exist_ok=True)
         # kit-only sandbox: the reviewer must not see the code
         box = os.path.join(self.rk, 'review_box')
         shutil.rmtree(box, ignore_errors=True)
-        shutil.copytree(self.kit, box)
-        areas = [('SYS', 'README.md (if any), 00_overview.md, 02_architecture.md, 03_interfaces/, 04_data/, 06_nfr.md')] + \
-                [(u['id'], f"05_behavior/{u['id']}.md and the 03_interfaces/04_data/07_tests files it references") for u in units]
+        shutil.copytree(self.kit, box, ignore=shutil.ignore_patterns('legacy_ref', 'trace.json', 'design'))
+        areas = [('SYS', 'README.md (if any), 00_overview.md, 02_constraints.md, 03_interfaces/, 04_data/, 06_nfr.md')] + \
+                [(c['id'], f"05_behavior/{c['id']}.md and the 03_interfaces/04_data/07_tests files it references")
+                 for c in caps]
 
         def review(area):
             aid, files = area
@@ -429,14 +506,22 @@ class Pipeline:
 
         # Fix gaps in batches (one session per subsystem group, SYS gaps first), sequentially: fixes edit shared
         # interface/data files, and one session per batch keeps the context and avoids conflicting edits.
-        group_of = {u['id']: (u.get('group') or 'ALL') for u in units}
-        batches = {}
+        # one fix session per batch: SYS alone, capabilities packed in id order up to FIX_BATCH_GAPS gaps per batch
+        # (deterministic, so a resumed run maps the same gaps to the same batch keys)
+        batches, cur, n = {}, None, 0
         for aid, _ in areas:
             gp = os.path.join(rv, f'gaps_{aid}.json')
             gaps = [g for g in (read_json(gp) or []) if g.get('severity') in ('blocking', 'important')]
-            if gaps:
-                key = 'SYS' if aid == 'SYS' else group_of.get(aid, 'ALL')
-                batches.setdefault(key, []).extend(gaps)
+            if not gaps:
+                continue
+            if aid == 'SYS':
+                batches['SYS'] = gaps
+                continue
+            if cur is None or len(batches[cur]) + len(gaps) > FIX_BATCH_GAPS:
+                n += 1
+                cur = f'CAP{n}'
+                batches[cur] = []
+            batches[cur].extend(gaps)
         for key in sorted(batches, key=lambda k: (k != 'SYS', k)):
             if os.path.exists(os.path.join(rv, f'fixed_{key}.json')):
                 continue
@@ -444,11 +529,66 @@ class Pipeline:
             self.claude(f'fix:{key}', self.render('fix.md', BATCH=key))
         shutil.rmtree(box, ignore_errors=True)
 
+    def p_contracts(self):
+        """Boundaries another party depends on keep their exact code-level form (verbatim contract files)."""
+        self.claude('contracts', self.render('contracts.md'))
+
+    def p_neutralize(self):
+        """Deterministic leak scan of the spec layer; an AI pass rewrites leaks in observable terms, then re-scan."""
+        before = neutrality.scan(self.ws)
+        rec = {'before': before['totals']}
+        if before['totals']['leaks']:
+            leaks = {f: {k: v for k, v in d.items() if v} for f, d in before['files'].items()}
+            write_json(os.path.join(self.rk, 'neutrality_leaks.json'), leaks)
+            self.claude('neutralize', self.render('neutralize.md'))
+            after = neutrality.scan(self.ws)
+            rec['after'] = after['totals']
+            rec['remaining'] = after['files']
+            self.log(f"  · 구조 누출: {before['totals']['leaks']} → {after['totals']['leaks']}")
+        write_json(os.path.join(self.rk, 'neutrality.json'), rec)
+
+    def p_design(self):
+        """Clean-room target design: the session sees only the legacy-neutral spec, intake and the LP-* problem list."""
+        box = os.path.join(self.rk, 'design_box')
+        shutil.rmtree(box, ignore_errors=True)
+        kit_root = os.path.abspath(self.kit)
+
+        def leave_out(d, names):
+            out = {n for n in names if n in ('legacy_ref', 'trace.json', 'design', 'golden')}
+            if os.path.abspath(d) == kit_root:     # root files only: 07_tests/README.md stays (test comparison rules)
+                out |= {n for n in names if n in ('10_plan.md', 'README.md', '09_open_questions.md')}
+            return out
+
+        shutil.copytree(self.kit, box, ignore=leave_out)
+        # open questions without their code-citing background: the assumptions matter, the legacy excerpts must not
+        QuestionStore(self.ws).render_markdown(os.path.join(box, '09_open_questions.md'), include_context=False)
+        shutil.copy2(os.path.join(self.rk, 'prompts', 'kitspec.md'), os.path.join(box, 'kitspec.md'))
+        os.makedirs(os.path.join(box, 'inputs'), exist_ok=True)
+        write_text(os.path.join(box, 'inputs', 'intake.md'), read_text(os.path.join(self.rk, 'intake.md'), '(none)'))
+        write_text(os.path.join(box, 'inputs', 'structure_issues.md'),
+                   read_text(os.path.join(self.kit, 'legacy_ref', 'structure_issues.md'), '(none)'))
+        self.claude('design', self.render('design.md'), cwd=box, add_dirs=[],
+                    allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep'])
+        if not os.path.exists(os.path.join(box, 'design', 'architecture.md')):
+            raise SessionFailed('design 세션이 design/architecture.md를 만들지 않았습니다. `rekit run`으로 재시도할 수 있습니다.')
+        shutil.rmtree(os.path.join(self.kit, 'design'), ignore_errors=True)
+        shutil.copytree(os.path.join(box, 'design'), os.path.join(self.kit, 'design'))
+        shutil.rmtree(box, ignore_errors=True)
+
     def p_finalize(self):
         self.coverage()
+        write_json(os.path.join(self.rk, 'neutrality.json'),
+                   {**(read_json(os.path.join(self.rk, 'neutrality.json'), {}) or {}),
+                    'pre_finalize': neutrality.scan(self.ws)['totals']})
+        os.makedirs(os.path.join(self.kit, 'tools'), exist_ok=True)      # implementer's structure self-check
+        shutil.copy2(os.path.join(HERE, 'similarity.py'), os.path.join(self.kit, 'tools', 'structure_check.py'))
         self.claude('finalize', self.render('finalize.md'))
         QuestionStore(self.ws).save()   # re-render 09_open_questions.md
         self.coverage()
+        n = read_json(os.path.join(self.rk, 'neutrality.json'), {}) or {}
+        final = neutrality.scan(self.ws)
+        n['final'], n['final_files'] = final['totals'], final['files']
+        write_json(os.path.join(self.rk, 'neutrality.json'), n)
 
     def coverage(self):
         inv = read_json(os.path.join(self.rk, 'inventory.json'))
@@ -472,9 +612,11 @@ class Pipeline:
     # ---------- driver ----------
     def run(self, until=None):
         steps = {'inventory': self.p_inventory, 'survey': self.p_survey, 'units': self.p_units,
-                 'synthesize': self.p_synthesize, 'gate1': lambda: self.p_gate('gate1'),
+                 'synthesize': self.p_synthesize, 'specify': self.p_specify, 'gate1': lambda: self.p_gate('gate1'),
                  'characterize': self.p_characterize, 'review': self.p_review,
-                 'gate2': lambda: self.p_gate('gate2'), 'finalize': self.p_finalize}
+                 'contracts': self.p_contracts, 'gate2': lambda: self.p_gate('gate2'),
+                 'neutralize': self.p_neutralize, 'design': self.p_design,
+                 'finalize': self.p_finalize}
         last = PHASES.index(until) if until in PHASES else len(PHASES) - 1
         for name in PHASES[:last + 1]:
             if self.phase_done(name):

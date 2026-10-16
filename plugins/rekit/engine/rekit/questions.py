@@ -96,7 +96,8 @@ class QuestionStore:
                 for q in self.items if q['status'] == 'answered']
 
     # ---------- rendering ----------
-    def render_markdown(self, path=None):
+    def render_markdown(self, path=None, include_context=True):
+        """include_context=False leaves out the code-citing background (for the clean-room design input)."""
         path = path or os.path.join(self.ws, 'kit', '09_open_questions.md')
         os.makedirs(os.path.dirname(path), exist_ok=True)
         lines = ['# 미해결 질문 및 적용 가정', '',
@@ -110,7 +111,7 @@ class QuestionStore:
             for q in sorted(qs, key=lambda q: (PRIO.get(q.get('priority'), 1), q['id'])):
                 lines.append(f"### {q['id']} [{q.get('priority', '')}] {q.get('area', '')}")
                 lines.append(f"- 질문: {q['question']}")
-                if q.get('context'):
+                if q.get('context') and include_context:
                     lines.append(f"- 배경: {q['context']}")
                 if q.get('why'):
                     lines.append(f"- 영향: {q['why']}")

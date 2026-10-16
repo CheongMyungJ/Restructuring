@@ -7,6 +7,7 @@
   rekit answer [<workspace>] [--import FILE] [--set QID "answer"] [--defer QID]
   rekit add-material [<workspace>] <file|dir>...
   rekit coverage [<workspace>]
+  rekit similarity <legacy_code_dir> <new_code_dir> [--contract GLOB ...] [--json] [--detail]
 Exit codes: 0 done/ok, 10 waiting for human answers, 1 error.
 """
 import argparse, json, os, shutil, sys
@@ -18,6 +19,7 @@ from .util import read_json, write_json, write_text
 INTAKE_QUESTIONS = [
     ('goal', '재개발의 목적/배경은 무엇인가요? (예: 플랫폼 교체, 유지보수성, 성능, 단종 대응)'),
     ('target', '목표 기술 스택/플랫폼이 정해져 있나요? (예: Java 21 + Spring Boot 3, 신규 SoC + C11, 미정)'),
+    ('arch', '새 시스템의 구조(아키텍처)에 대한 요구나, 레거시 구조에서 반드시 고치고 싶은 점이 있나요? (예: 전역 상태 제거, 계층 분리, 멀티코어/멀티 인스턴스 대응, 테스트 용이성, 모듈 경계 / 없음·모름)'),
     ('compat', '반드시 그대로 유지해야 하는 것은? (외부 인터페이스, 파일/전문 포맷, DB 스키마, 온플래시 데이터 포맷, 프로토콜, 성능 등 / 모름)'),
     ('scope', '재개발 범위에서 제외할 기능/모듈이 있나요? (예: 사용하지 않는 배치, 특정 #ifdef 변형)'),
     ('env', '레거시를 빌드/실행해 볼 수 있는 환경·장비·시뮬레이터·테스트 데이터(샘플 입력, 덤프, 로그)가 있나요?'),
@@ -303,6 +305,12 @@ def cmd_coverage(a):
     print(json.dumps({k: v for k, v in Pipeline(ws_arg(a.workspace)).coverage().items() if not k.startswith('unref')}, indent=1))
 
 
+def cmd_similarity(a):
+    from . import similarity
+    args = [a.legacy, a.new] + [x for c in (a.contract or []) for x in ('--contract', c)]
+    return similarity.main(args + (['--json'] if a.json else []) + (['--detail'] if a.detail else []))
+
+
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):      # progress lines must reach run.log / redirected files immediately
         try:
@@ -331,6 +339,11 @@ def main(argv=None):
     s.set_defaults(fn=cmd_answer)
     s = sub.add_parser('add-material'); s.add_argument('workspace'); s.add_argument('paths', nargs='+'); s.set_defaults(fn=cmd_add_material)
     s = sub.add_parser('coverage'); s.add_argument('workspace', nargs='?'); s.set_defaults(fn=cmd_coverage)
+    s = sub.add_parser('similarity', help='신규 구현이 레거시 구조를 얼마나 닮았는지(LSS) 측정')
+    s.add_argument('legacy'); s.add_argument('new')
+    s.add_argument('--contract', action='append', help='그대로 유지해야 하는 계약 파일 glob (예: fw_api.h, hal/*.h)')
+    s.add_argument('--json', action='store_true'); s.add_argument('--detail', action='store_true')
+    s.set_defaults(fn=cmd_similarity)
     s = sub.add_parser('doctor', help='필수/선택 도구 점검'); s.set_defaults(fn=cmd_doctor)
     s = sub.add_parser('wait', help='실행이 멈출 때까지 대기(완료/사람 확인 필요/실패/일시정지)')
     s.add_argument('workspace', nargs='?'); s.add_argument('--timeout', type=int, default=6600)
